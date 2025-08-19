@@ -38,7 +38,7 @@
     <div class="container mx-auto p-4 md:p-8 max-w-6xl">
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-            <p class="text-gray-500 mt-2">เวอร์ชัน 5.3 (Final)</p>
+            <p class="text-gray-500 mt-2">เวอร์ชัน 5.4 (Final)</p>
         </header>
 
         <!-- Navigation Tabs -->
@@ -343,8 +343,11 @@
 
         // --- Face-API & Webcam Management ---
         async function loadModels() {
-            // FIX: Use a more explicit relative path './' which is safer for deployment environments
-            const MODEL_URL = './models';
+            // FINAL FIX: Dynamically construct the absolute path for GitHub Pages
+            const repoName = 'my-shop-clock-in'; // Your repository name
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            const MODEL_URL = isGitHubPages ? `/${repoName}/models` : './models';
+
             try {
                 console.log('Attempting to load models from:', MODEL_URL);
                 await Promise.all([
@@ -357,6 +360,8 @@
                 return true;
             } catch (error) { 
                 console.error("Error loading models:", error); 
+                loader.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณาลองรีเฟรชหน้าเว็บอีกครั้ง</p>`;
+                clockLoader.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณาลองรีเฟรชหน้าเว็บอีกครั้ง</p>`;
                 return false; 
             }
         }
@@ -587,7 +592,7 @@
                         </div>
                         <button data-id="${user.id}" data-name="${user.name}" class="delete-user-button p-2 text-gray-400 hover:text-red-600">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h--3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
                             </svg>
                         </button>
                     `;
