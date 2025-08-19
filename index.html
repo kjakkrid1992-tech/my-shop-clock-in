@@ -343,8 +343,8 @@
 
         // --- Face-API & Webcam Management ---
         async function loadModels() {
-            // FIX: Correct model URL for jsdelivr CDN
-            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/models';
+            // FIX: Use the official model host which is more reliable for deployment
+            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
             try {
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -418,12 +418,14 @@
                 if (detections.length > 0) {
                     const bestMatch = faceMatcher.findBestMatch(detections[0].descriptor);
                     if (bestMatch.label !== 'unknown') {
-                        faceapi.draw.drawDetections(clockCanvas, resizedDetections);
                         activeUser = registeredUsersData.find(u => u.id === bestMatch.label);
-                        clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
-                        clockStatus.classList.add('text-green-600');
-                        clockActionButton.disabled = false;
-                        clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
+                        if(activeUser) {
+                            faceapi.draw.drawDetections(clockCanvas, resizedDetections);
+                            clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
+                            clockStatus.classList.add('text-green-600');
+                            clockActionButton.disabled = false;
+                            clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
+                        } else { resetClockStatus(); }
                     } else { resetClockStatus(); }
                 } else { resetClockStatus(); }
             }, 1000);
