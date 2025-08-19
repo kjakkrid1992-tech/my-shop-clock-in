@@ -344,16 +344,21 @@
         // --- Face-API & Webcam Management ---
         async function loadModels() {
             // FIX: Use a relative path to load models from the project folder
-            const MODEL_URL = './models';
+            const MODEL_URL = 'models';
             try {
+                console.log('Attempting to load models from:', MODEL_URL);
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
                     faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)
                 ]);
+                console.log('Models loaded successfully.');
                 return true;
-            } catch (error) { console.error("Error loading models:", error); return false; }
+            } catch (error) { 
+                console.error("Error loading models:", error); 
+                return false; 
+            }
         }
 
         async function startWebcam(videoElement, callback) {
