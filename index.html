@@ -343,8 +343,8 @@
 
         // --- Face-API & Webcam Management ---
         async function loadModels() {
-            // FIX: Use a relative path to load models from the project folder
-            const MODEL_URL = 'models';
+            // FIX: Use a more explicit relative path './' which is safer for deployment environments
+            const MODEL_URL = './models';
             try {
                 console.log('Attempting to load models from:', MODEL_URL);
                 await Promise.all([
