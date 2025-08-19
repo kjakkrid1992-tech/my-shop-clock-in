@@ -343,13 +343,7 @@
 
         // --- Face-API & Webcam Management ---
         async function loadModels() {
-            // FINAL FIX: Dynamically construct the absolute path for GitHub Pages
-            const repoName = 'my-shop-clock-in'; // Your repository name
-            const isGitHubPages = window.location.hostname.includes('github.io');
-            // Construct the base path. For GitHub Pages, it includes the repository name.
-            const basePath = isGitHubPages ? `/${repoName}` : '';
-            const MODEL_URL = `${basePath}/models`;
-
+            const MODEL_URL = './models'; // Use a simple relative path
             try {
                 console.log('Attempting to load models from:', MODEL_URL);
                 await Promise.all([
