@@ -38,7 +38,7 @@
     <div class="container mx-auto p-4 md:p-8 max-w-6xl">
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-            <p class="text-gray-500 mt-2">เวอร์ชัน 5.1 (Final)</p>
+            <p class="text-gray-500 mt-2">เวอร์ชัน 5.2 (Final)</p>
         </header>
 
         <!-- Navigation Tabs -->
@@ -343,7 +343,8 @@
 
         // --- Face-API & Webcam Management ---
         async function loadModels() {
-            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+            // FIX: Correct model URL for jsdelivr CDN
+            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/models';
             try {
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -398,7 +399,7 @@
                     }
                 });
                 if (labeledFaceDescriptors.length > 0) faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.5);
-                else faceMatcher = null; // Reset if no users
+                else faceMatcher = null;
             } catch (error) { console.error("Error loading registered users:", error); }
         }
 
@@ -681,7 +682,6 @@
             const headers = ["วันที่", "ชื่อ-นามสกุล", "รหัสพนักงาน", "เวลาเข้า", "เวลาออก", "ชั่วโมงทำงาน"];
             const rows = Array.from(historyTableBody.querySelectorAll("tr")).map(tr => {
                 const cells = Array.from(tr.querySelectorAll("td"));
-                // Custom logic to parse name and ID from the second cell
                 const nameIdCell = cells[1].textContent;
                 const match = nameIdCell.match(/(.+) \((.+)\)/);
                 const name = match ? match[1] : nameIdCell;
