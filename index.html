@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกเวลาด้วยใบหน้า</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        video::-webkit-media-controls { display: none !important; }
+        .modal-overlay { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
+        #video-container, #clock-video-container {
+            position: relative;
+            width: 100%;
+            max-width: 448px;
+            margin: auto;
+            background-color: #E5E7EB;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+        }
+        #video, #clock-video {
+            width: 100%;
+            height: auto;
+        }
+        #clock-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
+            <p class="text-gray-500 mt-2">เวอร์ชัน 5.1 (Final)</p>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex space-x-4" aria-label="Tabs">
+                <button id="tab-clock" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ลงเวลา</button>
+                <button id="tab-register" class="tab-button text-indigo-600 border-b-2 border-indigo-500 px-3 py-2 font-medium text-sm rounded-t-md">ลงทะเบียน</button>
+                <button id="tab-history" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ประวัติ</button>
+            </nav>
+        </div>
+
+        <main>
+            <!-- Clock In/Out Tab Content -->
+            <div id="content-clock" class="tab-content hidden p-4 md:p-6 bg-white rounded-lg shadow">
+                <div id="clock-loader" class="text-center py-8">
+                    <p class="text-lg font-medium text-indigo-600">กำลังเตรียมระบบลงเวลา...</p>
+                </div>
+                <div id="clock-container" class="hidden grid md:grid-cols-2 gap-8 items-start">
+                    <div class="text-center">
+                        <div id="clock-video-container">
+                            <video id="clock-video" width="640" height="480" autoplay muted playsinline></video>
+                            <canvas id="clock-canvas"></canvas>
+                        </div>
+                        <p id="clock-status" class="mt-4 text-lg font-semibold h-8"></p>
+                        <p id="clock-time" class="text-4xl font-bold text-gray-800 my-4"></p>
+                        <button id="clock-action-button" disabled class="w-full max-w-xs mx-auto inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400">
+                            กรุณามองกล้องเพื่อสแกนใบหน้า
+                        </button>
+                        <div class="mt-4">
+                            <button id="pin-fallback-button" class="text-sm text-indigo-600 hover:underline">สแกนหน้าไม่ผ่าน? ใช้รหัส PIN</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">5 รายการล่าสุด</h2>
+                        <div id="recent-attendance-list" class="space-y-2 bg-gray-50 p-3 rounded-lg border min-h-[300px]"></div>
+                    </div>
+                </div>
+                 <div id="pin-container" class="hidden max-w-sm mx-auto mt-6">
+                    <h3 class="text-center font-semibold mb-4">ลงเวลาด้วยรหัส PIN</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="pin-employeeId" class="block text-sm font-medium">รหัสพนักงาน</label>
+                            <input type="text" id="pin-employeeId" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div>
+                            <label for="pin-code" class="block text-sm font-medium">รหัส PIN</label>
+                            <input type="password" id="pin-code" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <button id="pin-submit-button" class="w-full inline-flex justify-center py-2 px-4 border shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">ยืนยัน</button>
+                        <button id="pin-cancel-button" class="w-full inline-flex justify-center py-2 px-4 border shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">ยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Register Tab Content -->
+            <div id="content-register" class="tab-content p-4 md:p-6 bg-white rounded-lg shadow">
+                 <div id="loader" class="text-center py-8">
+                    <p class="text-lg font-medium text-indigo-600">กำลังโหลดโมเดล AI...</p>
+                </div>
+                <div id="register-form-container" class="hidden">
+                     <div class="grid md:grid-cols-2 gap-8">
+                        <div class="flex flex-col">
+                            <div id="video-container">
+                                <video id="video" width="640" height="480" autoplay muted playsinline></video>
+                            </div>
+                            <p id="status-message" class="mt-3 text-center text-sm font-medium h-5"></p>
+                            <div class="mt-4 flex justify-center space-x-3" id="thumbnails-container"></div>
+                            <div class="mt-6 space-y-4">
+                                <div>
+                                    <label for="employeeId" class="block text-sm font-medium">รหัสพนักงาน</label>
+                                    <input type="text" id="employeeId" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                </div>
+                                <div>
+                                    <label for="employeeName" class="block text-sm font-medium">ชื่อ-นามสกุล</label>
+                                    <input type="text" id="employeeName" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                </div>
+                                <div>
+                                    <label for="pin" class="block text-sm font-medium">รหัส PIN (4-6 หลัก)</label>
+                                    <input type="password" id="pin" maxlength="6" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                </div>
+                            </div>
+                            <div class="mt-6 grid grid-cols-1 gap-3">
+                               <button id="captureButton" disabled class="w-full inline-flex justify-center py-2 px-4 border shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400">
+                                   ถ่ายภาพใบหน้า (0/3)
+                                </button>
+                                <button id="saveButton" disabled class="w-full inline-flex justify-center py-2 px-4 border shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-200">
+                                   บันทึกข้อมูล
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col">
+                            <h2 class="text-lg font-semibold text-gray-800 mb-4">รายชื่อผู้ที่ลงทะเบียนแล้ว</h2>
+                            <div class="flex-grow bg-gray-50 p-3 rounded-lg border overflow-y-auto h-96">
+                                <div id="registered-users-list" class="space-y-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab Content -->
+            <div id="content-history" class="tab-content hidden p-4 md:p-6 bg-white rounded-lg shadow">
+                <h2 class="text-2xl font-bold mb-4">ประวัติการลงเวลา</h2>
+                <!-- Filters -->
+                <div class="flex flex-wrap gap-4 mb-4 p-4 bg-gray-50 rounded-lg border">
+                    <div class="flex-1 min-w-[200px]">
+                        <label for="history-date" class="block text-sm font-medium text-gray-700">เลือกวันที่</label>
+                        <input type="date" id="history-date" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="flex-1 min-w-[200px]">
+                        <label for="history-search" class="block text-sm font-medium text-gray-700">ค้นหาตามชื่อ / รหัส</label>
+                        <input type="text" id="history-search" placeholder="ค้นหา..." class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="export-csv-button" class="py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                            Export to CSV
+                        </button>
+                    </div>
+                </div>
+                <!-- Table -->
+                <div class="overflow-x-auto">
+                    <table id="history-table" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อ-นามสกุล</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลาเข้า</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลาออก</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชั่วโมงทำงาน</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                    <p id="history-no-data" class="text-center text-gray-500 py-8 hidden">ไม่พบข้อมูล</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 modal-overlay opacity-0 pointer-events-none">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4 modal-content transform scale-95">
+            <h3 id="modal-title" class="text-lg font-medium leading-6"></h3>
+            <div class="mt-2"><p id="modal-message" class="text-sm text-gray-500"></p></div>
+            <div class="mt-4">
+                <button id="modal-close" type="button" class="w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700">ตกลง</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 modal-overlay opacity-0 pointer-events-none">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4 modal-content transform scale-95">
+            <h3 class="text-lg font-medium leading-6 text-yellow-700">ยืนยันการลบ</h3>
+            <div class="mt-2"><p id="confirm-modal-message" class="text-sm text-gray-500"></p></div>
+            <div class="mt-4 flex space-x-3">
+                <button id="confirm-modal-cancel" type="button" class="w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50">ยกเลิก</button>
+                <button id="confirm-modal-delete" type="button" class="w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700">ยืนยันการลบ</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // --- Firebase Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
+        // --- Firebase Config ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-face-attendance';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- Firebase Init ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- Global State & Elements ---
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalClose = document.getElementById('modal-close');
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmModalMessage = document.getElementById('confirm-modal-message');
+        const confirmModalCancel = document.getElementById('confirm-modal-cancel');
+        const confirmModalDelete = document.getElementById('confirm-modal-delete');
+        
+        const tabs = { clock: document.getElementById('tab-clock'), register: document.getElementById('tab-register'), history: document.getElementById('tab-history') };
+        const contents = { clock: document.getElementById('content-clock'), register: document.getElementById('content-register'), history: document.getElementById('content-history') };
+        let currentTab = 'register';
+        let faceMatcher = null;
+        let registeredUsersData = [];
+        let recognitionInterval = null;
+        const lastScanTimestamps = {};
+        const SCAN_COOLDOWN_SECONDS = 30;
+        let userToDeleteId = null;
+
+        // --- Clock Tab Elements ---
+        const clockLoader = document.getElementById('clock-loader');
+        const clockContainer = document.getElementById('clock-container');
+        const clockVideo = document.getElementById('clock-video');
+        const clockCanvas = document.getElementById('clock-canvas');
+        const clockStatus = document.getElementById('clock-status');
+        const clockTime = document.getElementById('clock-time');
+        const clockActionButton = document.getElementById('clock-action-button');
+        const pinFallbackButton = document.getElementById('pin-fallback-button');
+        const pinContainer = document.getElementById('pin-container');
+        const pinEmployeeIdInput = document.getElementById('pin-employeeId');
+        const pinCodeInput = document.getElementById('pin-code');
+        const pinSubmitButton = document.getElementById('pin-submit-button');
+        const pinCancelButton = document.getElementById('pin-cancel-button');
+        const recentAttendanceList = document.getElementById('recent-attendance-list');
+        let activeUser = null;
+
+        // --- Register Tab Elements ---
+        const loader = document.getElementById('loader');
+        const registerFormContainer = document.getElementById('register-form-container');
+        const video = document.getElementById('video');
+        const statusMessage = document.getElementById('status-message');
+        const thumbnailsContainer = document.getElementById('thumbnails-container');
+        const employeeIdInput = document.getElementById('employeeId');
+        const employeeNameInput = document.getElementById('employeeName');
+        const pinInput = document.getElementById('pin');
+        const captureButton = document.getElementById('captureButton');
+        const saveButton = document.getElementById('saveButton');
+        const registeredUsersList = document.getElementById('registered-users-list');
+        let capturedDescriptors = [];
+        const TOTAL_CAPTURES = 3;
+
+        // --- History Tab Elements ---
+        const historyDateInput = document.getElementById('history-date');
+        const historySearchInput = document.getElementById('history-search');
+        const historyTableBody = document.getElementById('history-table-body');
+        const historyNoData = document.getElementById('history-no-data');
+        const exportCsvButton = document.getElementById('export-csv-button');
+        let fullHistoryData = [];
+
+        // --- Utility Functions ---
+        function showModal(title, message, isError = false) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalTitle.className = isError ? 'text-lg font-medium text-red-700' : 'text-lg font-medium text-gray-900';
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('.modal-content').classList.remove('scale-95');
+        }
+        modalClose.addEventListener('click', () => {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('.modal-content').classList.add('scale-95');
+        });
+
+        function showConfirmModal(id, name) {
+            userToDeleteId = id;
+            confirmModalMessage.textContent = `คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน: ${name} (ID: ${id})? การกระทำนี้ไม่สามารถย้อนกลับได้`;
+            confirmModal.classList.remove('opacity-0', 'pointer-events-none');
+            confirmModal.querySelector('.modal-content').classList.remove('scale-95');
+        }
+
+        function hideConfirmModal() {
+            userToDeleteId = null;
+            confirmModal.classList.add('opacity-0', 'pointer-events-none');
+            confirmModal.querySelector('.modal-content').classList.add('scale-95');
+        }
+        confirmModalCancel.addEventListener('click', hideConfirmModal);
+        
+        function updateClock() {
+            clockTime.textContent = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        // --- Main Tab Switching Logic ---
+        function switchTab(tabName) {
+            currentTab = tabName;
+            Object.keys(tabs).forEach(key => {
+                tabs[key].classList.toggle('text-indigo-600', key === tabName);
+                tabs[key].classList.toggle('border-b-2', key === tabName);
+                tabs[key].classList.toggle('border-indigo-500', key === tabName);
+                tabs[key].classList.toggle('text-gray-500', key !== tabName);
+                contents[key].classList.toggle('hidden', key !== tabName);
+            });
+            
+            if (tabName === 'clock') {
+                stopWebcam(video);
+                startWebcam(clockVideo, () => startRecognition());
+                showPinForm(false);
+            } else if (tabName === 'register') {
+                stopWebcam(clockVideo);
+                stopRecognition();
+                startWebcam(video);
+            } else if (tabName === 'history') {
+                stopWebcam(video);
+                stopWebcam(clockVideo);
+                stopRecognition();
+                fetchHistory();
+            } else {
+                stopWebcam(video);
+                stopWebcam(clockVideo);
+                stopRecognition();
+            }
+        }
+        Object.keys(tabs).forEach(key => tabs[key].addEventListener('click', () => switchTab(key)));
+
+        // --- Face-API & Webcam Management ---
+        async function loadModels() {
+            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+            try {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)
+                ]);
+                return true;
+            } catch (error) { console.error("Error loading models:", error); return false; }
+        }
+
+        async function startWebcam(videoElement, callback) {
+            if (!videoElement || videoElement.srcObject) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                videoElement.srcObject = stream;
+                videoElement.addEventListener('loadedmetadata', () => {
+                    if (videoElement.id === 'video') {
+                        captureButton.disabled = false;
+                        statusMessage.textContent = 'กรุณาจัดใบหน้าให้อยู่ในกรอบ';
+                    }
+                    if (callback) callback();
+                });
+            } catch (err) {
+                console.error("Error accessing webcam:", err);
+                const msg = 'ไม่สามารถเข้าถึงกล้องได้';
+                if (videoElement.id === 'video') statusMessage.textContent = msg;
+                else showModal('ข้อผิดพลาด', msg, true);
+            }
+        }
+
+        function stopWebcam(videoElement) {
+            if (videoElement && videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+        }
+
+        // --- Clock In/Out Logic ---
+        async function loadRegisteredUsersForRecognition() {
+            try {
+                const employeesRef = collection(db, `artifacts/${appId}/public/data/employees`);
+                const querySnapshot = await getDocs(employeesRef);
+                const labeledFaceDescriptors = [];
+                registeredUsersData = [];
+                querySnapshot.forEach(doc => {
+                    const user = doc.data();
+                    if (user.descriptor) {
+                        registeredUsersData.push(user);
+                        const descriptor = new Float32Array(user.descriptor);
+                        labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
+                    }
+                });
+                if (labeledFaceDescriptors.length > 0) faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.5);
+                else faceMatcher = null; // Reset if no users
+            } catch (error) { console.error("Error loading registered users:", error); }
+        }
+
+        function startRecognition() {
+            if (recognitionInterval || !faceMatcher) return;
+            clockLoader.classList.add('hidden');
+            clockContainer.classList.remove('hidden');
+            recognitionInterval = setInterval(async () => {
+                if (currentTab !== 'clock' || !pinContainer.classList.contains('hidden')) return;
+                const detections = await faceapi.detectAllFaces(clockVideo, new faceapi.SsdMobilenetv1Options()).withFaceLandmarks().withFaceDescriptors();
+                const displaySize = { width: clockVideo.clientWidth, height: clockVideo.clientHeight };
+                faceapi.matchDimensions(clockCanvas, displaySize);
+                const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                clockCanvas.getContext('2d').clearRect(0, 0, clockCanvas.width, clockCanvas.height);
+
+                if (detections.length > 0) {
+                    const bestMatch = faceMatcher.findBestMatch(detections[0].descriptor);
+                    if (bestMatch.label !== 'unknown') {
+                        faceapi.draw.drawDetections(clockCanvas, resizedDetections);
+                        activeUser = registeredUsersData.find(u => u.id === bestMatch.label);
+                        clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
+                        clockStatus.classList.add('text-green-600');
+                        clockActionButton.disabled = false;
+                        clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
+                    } else { resetClockStatus(); }
+                } else { resetClockStatus(); }
+            }, 1000);
+        }
+
+        function stopRecognition() {
+            if (recognitionInterval) { clearInterval(recognitionInterval); recognitionInterval = null; }
+        }
+        
+        function resetClockStatus() {
+            activeUser = null;
+            clockStatus.textContent = '';
+            clockStatus.classList.remove('text-green-600');
+            clockActionButton.disabled = true;
+            clockActionButton.textContent = 'กรุณามองกล้องเพื่อสแกนใบหน้า';
+        }
+
+        clockActionButton.addEventListener('click', () => { if (activeUser) recordAttendance(activeUser, 'Face'); });
+        
+        async function recordAttendance(user, method) {
+            const now = new Date();
+            const lastScan = lastScanTimestamps[user.id];
+            if (lastScan && (now - lastScan) / 1000 < SCAN_COOLDOWN_SECONDS) {
+                showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true);
+                return;
+            }
+            try {
+                const todayStr = now.toISOString().split('T')[0];
+                const startOfDay = new Date(todayStr).getTime();
+                const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+                const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where("employeeId", "==", user.id));
+                const querySnapshot = await getDocs(q);
+                let todaysRecordsCount = 0;
+                querySnapshot.forEach(doc => {
+                    if (doc.data().timestamp.toDate().getTime() >= startOfDay && doc.data().timestamp.toDate().getTime() <= endOfDay) {
+                        todaysRecordsCount++;
+                    }
+                });
+                const attendanceType = todaysRecordsCount % 2 === 0 ? 'IN' : 'OUT';
+                const typeText = attendanceType === 'IN' ? 'เข้างาน' : 'ออกงาน';
+                await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
+                    employeeId: user.id, employeeName: user.name, timestamp: now, type: attendanceType, method: method
+                });
+                lastScanTimestamps[user.id] = now;
+                showModal('บันทึกสำเร็จ', `คุณ ${user.name} ได้บันทึกเวลา${typeText}เรียบร้อยแล้ว`);
+                resetClockStatus();
+                await fetchRecentAttendance();
+            } catch (error) {
+                console.error("Error recording attendance:", error);
+                showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
+            }
+        }
+        
+        async function fetchRecentAttendance() {
+            try {
+                const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), orderBy("timestamp", "desc"), limit(5));
+                const querySnapshot = await getDocs(q);
+                recentAttendanceList.innerHTML = '';
+                if (querySnapshot.empty) { recentAttendanceList.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีข้อมูล</p>'; return; }
+                querySnapshot.forEach(doc => {
+                    const record = doc.data();
+                    const time = record.timestamp.toDate().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                    const typeText = record.type === 'IN' ? 'เข้างาน' : 'ออกงาน';
+                    const typeColor = record.type === 'IN' ? 'text-green-600' : 'text-red-600';
+                    const item = document.createElement('div');
+                    item.className = 'p-2 bg-white rounded border flex justify-between items-center';
+                    item.innerHTML = `<div><p class="font-medium">${record.employeeName}</p><p class="text-xs text-gray-500">เวลา: ${time}</p></div><span class="text-sm font-semibold ${typeColor}">${typeText}</span>`;
+                    recentAttendanceList.appendChild(item);
+                });
+            } catch(error) {
+                console.error("Error fetching recent attendance:", error);
+                recentAttendanceList.innerHTML = '<p class="text-center text-red-500">โหลดข้อมูลล้มเหลว</p>';
+            }
+        }
+
+        // --- PIN Fallback Logic ---
+        function showPinForm(show) {
+            pinContainer.classList.toggle('hidden', !show);
+            clockContainer.classList.toggle('hidden', show);
+            if(show) { stopRecognition(); stopWebcam(clockVideo); } 
+            else { startWebcam(clockVideo, () => startRecognition()); }
+        }
+        pinFallbackButton.addEventListener('click', () => showPinForm(true));
+        pinCancelButton.addEventListener('click', () => showPinForm(false));
+        pinSubmitButton.addEventListener('click', async () => {
+            const employeeId = pinEmployeeIdInput.value.trim();
+            const pin = pinCodeInput.value.trim();
+            if(!employeeId || !pin) { showModal('ข้อมูลไม่ครบ', 'กรุณากรอกรหัสพนักงานและ PIN', true); return; }
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/data/employees`, employeeId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists() && docSnap.data().pin === pin) {
+                    await recordAttendance(docSnap.data(), 'PIN');
+                    showPinForm(false);
+                    pinEmployeeIdInput.value = '';
+                    pinCodeInput.value = '';
+                } else { showModal('ข้อมูลไม่ถูกต้อง', 'รหัสพนักงานหรือ PIN ไม่ถูกต้อง', true); }
+            } catch (error) { showModal('เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบข้อมูลได้', true); }
+        });
+
+        // --- Register Tab Logic ---
+        captureButton.addEventListener('click', async () => {
+            if (capturedDescriptors.length >= TOTAL_CAPTURES) return;
+            statusMessage.textContent = 'กำลังประมวลผล...';
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+            if (detection) {
+                capturedDescriptors.push(Array.from(detection.descriptor));
+                const canvas = document.createElement('canvas');
+                canvas.width = 60; canvas.height = 60;
+                canvas.getContext('2d').drawImage(video, 0, 0, 60, 60);
+                canvas.classList.add('rounded-md', 'border-2', 'border-green-500');
+                thumbnailsContainer.appendChild(canvas);
+                const count = capturedDescriptors.length;
+                captureButton.textContent = `ถ่ายภาพใบหน้า (${count}/${TOTAL_CAPTURES})`;
+                statusMessage.textContent = `ถ่ายภาพที่ ${count}/${TOTAL_CAPTURES} สำเร็จ`;
+                if (count === TOTAL_CAPTURES) {
+                    captureButton.disabled = true;
+                    saveButton.disabled = false;
+                    statusMessage.textContent = 'ถ่ายภาพครบแล้ว กรุณากรอกข้อมูลและบันทึก';
+                }
+            } else { statusMessage.textContent = 'ไม่พบใบหน้าในภาพ กรุณาลองใหม่'; }
+        });
+
+        saveButton.addEventListener('click', async () => {
+            const employeeId = employeeIdInput.value.trim();
+            const employeeName = employeeNameInput.value.trim();
+            const pin = pinInput.value.trim();
+            if (!employeeId || !employeeName || pin.length < 4) { showModal('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลให้ถูกต้อง', true); return; }
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/data/employees`, employeeId);
+                if ((await getDoc(docRef)).exists()) { showModal('ผิดพลาด', 'รหัสพนักงานนี้ถูกลงทะเบียนแล้ว', true); return; }
+                const avgDescriptor = capturedDescriptors[0].map((val, i) => capturedDescriptors.reduce((sum, desc) => sum + desc[i], 0) / TOTAL_CAPTURES);
+                await setDoc(docRef, { id: employeeId, name: employeeName, pin: pin, descriptor: avgDescriptor });
+                showModal('สำเร็จ', `ลงทะเบียน ${employeeName} เรียบร้อยแล้ว`);
+                await fetchRegisteredUsers();
+                await loadRegisteredUsersForRecognition();
+                resetRegisterForm();
+            } catch (error) { showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', true); }
+        });
+
+        async function fetchRegisteredUsers() {
+            try {
+                const querySnapshot = await getDocs(collection(db, `artifacts/${appId}/public/data/employees`));
+                registeredUsersList.innerHTML = '';
+                if (querySnapshot.empty) { registeredUsersList.innerHTML = '<p class="text-center text-gray-500">ยังไม่มีพนักงานลงทะเบียน</p>'; return; }
+                querySnapshot.forEach((doc) => {
+                    const user = doc.data();
+                    const userElement = document.createElement('div');
+                    userElement.className = 'p-2 bg-white rounded border flex justify-between items-center';
+                    userElement.innerHTML = `
+                        <div class="flex-1">
+                            <p class="font-medium">${user.name}</p>
+                            <p class="text-xs text-gray-500">ID: ${user.id}</p>
+                        </div>
+                        <button data-id="${user.id}" data-name="${user.name}" class="delete-user-button p-2 text-gray-400 hover:text-red-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    `;
+                    registeredUsersList.appendChild(userElement);
+                });
+            } catch (error) { registeredUsersList.innerHTML = '<p class="text-center text-red-500">ไม่สามารถโหลดข้อมูลได้</p>'; }
+        }
+
+        registeredUsersList.addEventListener('click', (e) => {
+            const deleteButton = e.target.closest('.delete-user-button');
+            if (deleteButton) {
+                const id = deleteButton.dataset.id;
+                const name = deleteButton.dataset.name;
+                showConfirmModal(id, name);
+            }
+        });
+
+        confirmModalDelete.addEventListener('click', async () => {
+            if (!userToDeleteId) return;
+            try {
+                const docRef = doc(db, `artifacts/${appId}/public/data/employees`, userToDeleteId);
+                await deleteDoc(docRef);
+                hideConfirmModal();
+                showModal('ลบสำเร็จ', `พนักงาน ID: ${userToDeleteId} ถูกลบออกจากระบบแล้ว`);
+                await fetchRegisteredUsers();
+                await loadRegisteredUsersForRecognition();
+            } catch (error) {
+                hideConfirmModal();
+                showModal('เกิดข้อผิดพลาด', 'ไม่สามารถลบข้อมูลพนักงานได้', true);
+                console.error("Error deleting user:", error);
+            }
+        });
+
+        function resetRegisterForm() {
+            employeeIdInput.value = ''; employeeNameInput.value = ''; pinInput.value = '';
+            saveButton.disabled = true; captureButton.disabled = false;
+            captureButton.textContent = `ถ่ายภาพใบหน้า (0/${TOTAL_CAPTURES})`;
+            capturedDescriptors = []; thumbnailsContainer.innerHTML = '';
+        }
+
+        // --- History Tab Logic ---
+        async function fetchHistory() {
+            try {
+                const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                fullHistoryData = querySnapshot.docs.map(doc => doc.data());
+                renderHistoryTable();
+            } catch (error) {
+                console.error("Error fetching history:", error);
+                historyTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">ไม่สามารถโหลดข้อมูลประวัติได้</td></tr>`;
+            }
+        }
+
+        function renderHistoryTable() {
+            const selectedDate = historyDateInput.value;
+            const searchTerm = historySearchInput.value.toLowerCase();
+            const processedData = {};
+            fullHistoryData.forEach(record => {
+                const recordDate = record.timestamp.toDate();
+                const dateKey = recordDate.toISOString().split('T')[0];
+                const userKey = `${dateKey}_${record.employeeId}`;
+                if (!processedData[userKey]) {
+                    processedData[userKey] = { date: recordDate, employeeId: record.employeeId, employeeName: record.employeeName, records: [] };
+                }
+                processedData[userKey].records.push(recordDate);
+            });
+
+            let filteredRows = Object.values(processedData).filter(data => {
+                const dateMatch = !selectedDate || data.date.toISOString().split('T')[0] === selectedDate;
+                const searchMatch = !searchTerm || data.employeeName.toLowerCase().includes(searchTerm) || data.employeeId.toLowerCase().includes(searchTerm);
+                return dateMatch && searchMatch;
+            });
+            
+            historyTableBody.innerHTML = '';
+            historyNoData.classList.toggle('hidden', filteredRows.length > 0);
+            historyTableBody.classList.toggle('hidden', filteredRows.length === 0);
+
+            filteredRows.forEach(data => {
+                data.records.sort((a, b) => a - b);
+                const clockIn = data.records[0];
+                const clockOut = data.records.length > 1 ? data.records[data.records.length - 1] : null;
+                let hoursWorked = '-';
+                if (clockIn && clockOut) {
+                    hoursWorked = ((clockOut - clockIn) / 36e5).toFixed(2);
+                }
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${clockIn.toLocaleDateString('th-TH')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${data.employeeName} (${data.employeeId})</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${clockIn.toLocaleTimeString('th-TH')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${clockOut ? clockOut.toLocaleTimeString('th-TH') : '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${hoursWorked}</td>
+                `;
+                historyTableBody.appendChild(row);
+            });
+        }
+
+        function exportToCSV() {
+            const headers = ["วันที่", "ชื่อ-นามสกุล", "รหัสพนักงาน", "เวลาเข้า", "เวลาออก", "ชั่วโมงทำงาน"];
+            const rows = Array.from(historyTableBody.querySelectorAll("tr")).map(tr => {
+                const cells = Array.from(tr.querySelectorAll("td"));
+                // Custom logic to parse name and ID from the second cell
+                const nameIdCell = cells[1].textContent;
+                const match = nameIdCell.match(/(.+) \((.+)\)/);
+                const name = match ? match[1] : nameIdCell;
+                const id = match ? match[2] : '';
+                return [`"${cells[0].textContent}"`, `"${name}"`, `"${id}"`, `"${cells[2].textContent}"`, `"${cells[3].textContent}"`, `"${cells[4].textContent}"`];
+            });
+            
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "attendance_history.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        historyDateInput.addEventListener('change', renderHistoryTable);
+        historySearchInput.addEventListener('input', renderHistoryTable);
+        exportCsvButton.addEventListener('click', exportToCSV);
+
+        // --- Initial Application Load ---
+        async function main() {
+            try {
+                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                else await signInAnonymously(auth);
+                
+                const modelsLoaded = await loadModels();
+                if (modelsLoaded) {
+                    await Promise.all([
+                        fetchRegisteredUsers(),
+                        loadRegisteredUsersForRecognition(),
+                        fetchRecentAttendance()
+                    ]);
+                    loader.classList.add('hidden');
+                    registerFormContainer.classList.remove('hidden');
+                    historyDateInput.value = new Date().toISOString().split('T')[0];
+                    switchTab('register');
+                    setInterval(updateClock, 1000);
+                } else {
+                     loader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดโมเดล AI</p>';
+                     clockLoader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดโมเดล AI</p>';
+                }
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                loader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการเริ่มต้นระบบ</p>';
+            }
+        }
+        
+        main();
+    </script>
+</body>
+</html>
