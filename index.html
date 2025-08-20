@@ -343,12 +343,15 @@
 
         // --- Face-API & Webcam Management ---
         async function loadModels() {
-            const repoName = 'my-shop-clock-in'; 
-            const isGitHubPages = window.location.hostname.includes('github.io');
-            const basePath = isGitHubPages ? `/${repoName}` : '';
-            const MODEL_URL = `${basePath}/models`;
-
+            const MODEL_URL = './models';
             try {
+                // Check if faceapi is loaded, if not, wait a bit.
+                if (typeof faceapi === 'undefined') {
+                    console.log('face-api.js not loaded yet, waiting...');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    if (typeof faceapi === 'undefined') throw new Error("face-api.js failed to load");
+                }
+                
                 console.log('Attempting to load models from:', MODEL_URL);
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
