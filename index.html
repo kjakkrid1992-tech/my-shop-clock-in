@@ -343,7 +343,11 @@
 
         // --- Face-API & Webcam Management ---
         async function loadModels() {
-            const MODEL_URL = './models'; // Use a simple relative path
+            const repoName = 'my-shop-clock-in'; 
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            const basePath = isGitHubPages ? `/${repoName}` : '';
+            const MODEL_URL = `${basePath}/models`;
+
             try {
                 console.log('Attempting to load models from:', MODEL_URL);
                 await Promise.all([
