@@ -343,30 +343,44 @@
 
         // --- Face-API & Webcam Management ---
         async function loadModels() {
-            const MODEL_URL = './models';
-            try {
-                // Check if faceapi is loaded, if not, wait a bit.
-                if (typeof faceapi === 'undefined') {
-                    console.log('face-api.js not loaded yet, waiting...');
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    if (typeof faceapi === 'undefined') throw new Error("face-api.js failed to load");
+            const SOURCES = [
+                './models',
+                'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js-models/weights'
+            ];
+
+            for (const MODEL_URL of SOURCES) {
+                try {
+                    // Check if faceapi is loaded, if not, wait a bit.
+                    if (typeof faceapi === 'undefined') {
+                        console.log('face-api.js not loaded yet, waiting...');
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        if (typeof faceapi === 'undefined') throw new Error("face-api.js failed to load");
+                    }
+                    
+                    // Ping a manifest file to see if the source is valid
+                    const testUrl = `${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`;
+                    const response = await fetch(testUrl, { method: 'HEAD', cache: 'no-cache' });
+                    if (!response.ok) throw new Error(`Manifest not found at ${MODEL_URL}`);
+
+                    console.log('Attempting to load models from:', MODEL_URL);
+                    await Promise.all([
+                        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+                        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)
+                    ]);
+                    console.log('Models loaded successfully from:', MODEL_URL);
+                    return true;
+                } catch (error) { 
+                    console.warn('Failed to load models from:', MODEL_URL, error);
                 }
-                
-                console.log('Attempting to load models from:', MODEL_URL);
-                await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)
-                ]);
-                console.log('Models loaded successfully.');
-                return true;
-            } catch (error) { 
-                console.error("Error loading models:", error); 
-                loader.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณาลองรีเฟรชหน้าเว็บอีกครั้ง</p>`;
-                clockLoader.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณาลองรีเฟรชหน้าเว็บอีกครั้ง</p>`;
-                return false; 
             }
+            
+            // If all sources fail
+            const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วรีเฟรช';
+            loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+            clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+            return false; 
         }
 
         async function startWebcam(videoElement, callback) {
