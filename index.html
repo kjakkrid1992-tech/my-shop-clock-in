@@ -342,45 +342,51 @@
         Object.keys(tabs).forEach(key => tabs[key].addEventListener('click', () => switchTab(key)));
 
         // --- Face-API & Webcam Management ---
+        async function trySource(MODEL_URL) {
+            if (!window.faceapi) throw new Error('face-api.js not loaded');
+            console.log('[models] probing:', MODEL_URL);
+
+            const ping = await fetch(`${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`, { cache: 'reload' });
+            if (!ping.ok) throw new Error(`manifest 404 at ${MODEL_URL}`);
+
+            const sequence = [
+                ['tinyFaceDetector', () => faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)],
+                ['faceLandmark68', () => faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)],
+                ['faceRecognition', () => faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)],
+                ['ssdMobilenetv1', () => faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)],
+            ];
+
+            for (const [name, loader] of sequence) {
+                try {
+                await loader();
+                console.log(`[models] ok: ${name}`);
+                } catch (err) {
+                throw new Error(`${name} failed from ${MODEL_URL}: ${err?.message || err}`);
+                }
+            }
+        }
+
         async function loadModels() {
             const SOURCES = [
                 './models',
+                'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights',
                 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js-models/weights'
             ];
 
-            for (const MODEL_URL of SOURCES) {
+            for (const src of SOURCES) {
                 try {
-                    // Check if faceapi is loaded, if not, wait a bit.
-                    if (typeof faceapi === 'undefined') {
-                        console.log('face-api.js not loaded yet, waiting...');
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        if (typeof faceapi === 'undefined') throw new Error("face-api.js failed to load");
-                    }
-                    
-                    // Ping a manifest file to see if the source is valid
-                    const testUrl = `${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`;
-                    const response = await fetch(testUrl, { method: 'HEAD', cache: 'no-cache' });
-                    if (!response.ok) throw new Error(`Manifest not found at ${MODEL_URL}`);
-
-                    console.log('Attempting to load models from:', MODEL_URL);
-                    await Promise.all([
-                        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)
-                    ]);
-                    console.log('Models loaded successfully from:', MODEL_URL);
+                    await trySource(src);
+                    console.log('[models] loaded from:', src);
                     return true;
-                } catch (error) { 
-                    console.warn('Failed to load models from:', MODEL_URL, error);
+                } catch (e) {
+                    console.warn('[models] source failed:', src, e);
                 }
             }
-            
-            // If all sources fail
-            const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วรีเฟรช';
-            loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
-            clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
-            return false; 
+
+            const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณารีเฟรชหรือลองใหม่';
+            if (loader) loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+            if (clockLoader) clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+            return false;
         }
 
         async function startWebcam(videoElement, callback) {
