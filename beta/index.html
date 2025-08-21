@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Face Attendance — v5.6.1c (First working build + 7 fixes)</title>
+  <title>Face Attendance — v5.6.1d (First working build + 7 fixes)</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -36,7 +36,7 @@
 </head>
 <body>
   <header>
-    <h1>Face Attendance — v5.6.1c · First working build + 7 fixes</h1>
+    <h1>Face Attendance — v5.6.1d · First working build + 7 fixes</h1>
     <nav class="tabs">
       <button id="tabClock" class="tab active" data-tab="clock">ลงเวลา</button>
       <button id="tabRegister" class="tab" data-tab="register">ลงทะเบียน</button>
@@ -44,7 +44,7 @@
     </nav>
   </header>
 
-  <div class="version-badge">v5.6.1c</div>
+  <div class="version-badge">v5.6.1d</div>
 
   <main class="px-4 pb-6">
     <section id="clock" class="space-y-3">
@@ -95,7 +95,7 @@
 
   <script type="module">
     // App version & cache-bust
-    const APP_VERSION = '5.6.1c';
+    const APP_VERSION = '5.6.1d';
     (function enforceQueryVersion(){
       try{
         const url = new URL(location.href);
@@ -322,7 +322,7 @@
       await startWebcam();
       try{
         await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('./models');
+        await faceapi.nets.faceLandmark68TinyNet.loadFromUri('./models');
         await faceapi.nets.faceRecognitionNet.loadFromUri('./models');
         setBadge(document.getElementById('clockStatus'),'โมเดลพร้อมใช้งาน','green');
       }catch(e){ setBadge(document.getElementById('clockStatus'),'โหลดโมเดลล้มเหลว','red'); console.error('Load models error', e); }
@@ -336,7 +336,7 @@
         const dims = faceapi.matchDimensions(canvas, { width: video.videoWidth, height: video.videoHeight }, true);
         let det = null;
         try{
-          det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 })).withFaceLandmarks().withFaceDescriptor();
+          det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 })).withFaceLandmarks(true).withFaceDescriptor();
         }catch(e){ console.error('detect error', e); }
         const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
         if (det){
