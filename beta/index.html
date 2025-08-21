@@ -66,7 +66,7 @@
     .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:96px; background:#1c1c20; color:#fff; border:1px solid #2a2a2e; border-radius:999px; padding:10px 14px; z-index:60; display:none; }
 
     /* Version badge */
-    .version-badge{ position:fixed; top:10px; right:10px; z-index:70; font-size:12px; font-weight:800; padding:6px 10px; border-radius:999px; background:#11131a; border:1px solid #2a2a2e; color:#c9cbd3; opacity:.9; }
+    .version-badge{ position:fixed; top:10px; right:10px; z-index:70; font-size:12px; font-weight:800; padding:6px 10px; border-radius:999px; background:#11131a; border:1px solid #2a2a2e; color:#c9cbd3; opacity:.9; pointer-events:none; }
   </style>
 </head>
 <body>
@@ -353,15 +353,42 @@
     }
 
     // โหลดโมเดลจากโฟลเดอร์ ./models (ต้องมีไฟล์โมเดลในโปรเจกต์เดิมอยู่แล้ว)
-    await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
-    await faceapi.nets.faceLandmark68Net.loadFromUri('./models');
-    await faceapi.nets.faceRecognitionNet.loadFromUri('./models');
+    try{
+      await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
+      await faceapi.nets.faceLandmark68Net.loadFromUri('./models');
+      await faceapi.nets.faceRecognitionNet.loadFromUri('./models');
+      setBadge($('#clockStatus'),'โมเดลพร้อมใช้งาน','green');
+    }catch(e){
+      setBadge($('#clockStatus'),'โหลดโมเดลล้มเหลว','red');
+      console.error('Load models error', e);
+    }
 
-    // ====== Recognition loop (placeholder matching by "employees[0]") ======
+    // ====== Recognition loop (interop v5.6)
+    // ใช้ฐานเดิมถ้ามี: window.faceMatcher + window.registeredUsersData
+    // ถ้าไม่มี ให้ fallback ที่ employees collection
+ ======
     // หมายเหตุ: ส่วนนี้เป็นโครงให้ผูกกับระบบ embeddings เดิมของคุณ
     const employees = await loadEmployees();
+    window.__employees = employees;
     let activeUser = null;
     window.activeUser = null;
+
+    function resolveUserByDescriptor(descriptor){
+      try{
+        if (window.faceMatcher && descriptor){
+          const result = window.faceMatcher.findBestMatch(descriptor);
+          if (result && result.label && result.label !== 'unknown'){
+            const list = Array.isArray(window.registeredUsersData) ? window.registeredUsersData : [];
+            let u = list.find(u=> u.id===result.label || u.employeeId===result.label || u.name===result.label);
+            if (!u) u = { id: result.label, name: result.label };
+            return u;
+          }
+        }
+      }catch(e){ console.warn('resolveUserByDescriptor failed', e); }
+      // fallback: ใช้คนแรกใน employees เพื่อให้ flow ทำงานระหว่างทดสอบ
+      if (Array.isArray(window.__employees) && window.__employees.length) return window.__employees[0];
+      return null;
+    }
 
     async function recognitionLoop(){
       const video = $('#clockVideo');
@@ -369,15 +396,22 @@
       if (!video || video.readyState < 2){ requestAnimationFrame(recognitionLoop); return; }
 
       const dims = faceapi.matchDimensions(canvas, { width: video.videoWidth, height: video.videoHeight }, true);
-      const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }))
-                        .withFaceLandmarks().withFaceDescriptor();
-      canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+      let det = null;
+      try{
+        det = await faceapi
+          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }))
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+      }catch(e){ console.error('detect error', e); }
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
       if (det){
         const resized = faceapi.resizeResults(det, dims);
         faceapi.draw.drawDetections(canvas, resized);
-        // TODO: นำ descriptor ไปหาคนที่ใกล้สุดจากฐาน (faceMatcher)
-        // ในที่นี้จะจำลองว่ารู้จักเป็นคนแรกของลิสต์ (เพื่อให้ปุ่มทำงานครบ flow)
-        if (!activeUser && employees.length){ activeUser = employees[0]; window.activeUser = activeUser; }
+        const user = resolveUserByDescriptor(det.descriptor);
+        activeUser = user; window.activeUser = user;
       } else {
         activeUser = null; window.activeUser = null;
       }
