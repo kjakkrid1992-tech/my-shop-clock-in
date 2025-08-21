@@ -65,8 +65,11 @@
               <video id="clock-video" width="640" height="480" autoplay muted playsinline></video>
               <canvas id="clock-canvas"></canvas>
             </div>
-
-            <p id="clock-status" class="mt-3 text-base font-semibold h-6"></p>
+<div class="mt-2 flex items-center gap-2 text-xs">
+  <select id="clock-camera-select" class="px-2 py-1 border rounded-md"></select>
+  <button id="clock-refresh-cameras" class="px-2 py-1 border rounded-md">สลับ/ค้นหากล้อง</button>
+</div>
+<p id="clock-status" class="mt-3 text-base font-semibold h-6"></p>
             <p class="text-gray-500 text-sm">เวลา: <span id="clock-time" class="font-semibold">--:--</span></p>
 
             <div class="kiosk-bottom mt-3 rounded-xl">
@@ -125,7 +128,11 @@
                 <video id="video" width="640" height="480" autoplay muted playsinline></video>
                 <canvas id="reg-canvas"></canvas>
               </div>
-              <p id="status-message" class="mt-3 text-center text-sm font-medium h-5"></p>
+<div class="mt-2 flex items-center gap-2 text-xs">
+  <select id="reg-camera-select" class="px-2 py-1 border rounded-md"></select>
+  <button id="reg-refresh-cameras" class="px-2 py-1 border rounded-md">สลับ/ค้นหากล้อง</button>
+</div>
+<p id="status-message" class="mt-3 text-center text-sm font-medium h-5"></p>
               <div class="mt-4 flex justify-center space-x-3" id="thumbnails-container"></div>
 
               <div class="mt-6 space-y-4">
@@ -293,6 +300,9 @@
     const pinFallbackButton = document.getElementById('pin-fallback-button');
     const handsfreeToggle = document.getElementById('handsfree-toggle');
 
+    const clockCameraSelect = document.getElementById('clock-camera-select');
+    const clockRefreshCameras = document.getElementById('clock-refresh-cameras');
+
     const pinContainer = document.getElementById('pin-container');
     const pinEmployeeIdInput = document.getElementById('pin-employeeId');
     const pinCodeInput = document.getElementById('pin-code');
@@ -315,6 +325,8 @@
     const captureButton = document.getElementById('captureButton');
     const saveButton = document.getElementById('saveButton');
     const registeredUsersList = document.getElementById('registered-users-list');
+    const regCameraSelect = document.getElementById('reg-camera-select');
+    const regRefreshCameras = document.getElementById('reg-refresh-cameras');
     let capturedDescriptors = [];
     const TOTAL_CAPTURES = 3;
 
@@ -369,12 +381,12 @@
 
       if (tabName==='clock'){
         stopWebcam(video);
-        startWebcam(clockVideo, () => startRecognition());
+        populateCameraSelect(clockCameraSelect,'cam_clock').then(()=>{ const id = clockCameraSelect?.value || null; startWebcam(clockVideo, ()=>startRecognition(), id); });
         showPinForm(false);
       } else if (tabName==='register') {
         stopWebcam(clockVideo);
         stopRecognition();
-        startWebcam(video);
+        populateCameraSelect(regCameraSelect,'cam_reg').then(()=>{ const id = regCameraSelect?.value || null; startWebcam(video, null, id); });
       } else if (tabName==='history') {
         stopWebcam(video); stopWebcam(clockVideo); stopRecognition(); fetchHistory();
       } else {
@@ -415,12 +427,35 @@
     }
 
     // --- Webcam ---
-    async function startWebcam(videoElement, callback){
+    async function getVideoInputs(){
+      try{ const devices = await navigator.mediaDevices.enumerateDevices();
+        return devices.filter(d=>d.kind==='videoinput');
+      }catch(e){ return []; }
+    }
+    async function populateCameraSelect(selectEl, storageKey){
+      const inputs = await getVideoInputs();
+      if (!selectEl) return inputs;
+      selectEl.innerHTML='';
+      if (!inputs.length){
+        const opt = document.createElement('option'); opt.value=''; opt.textContent='ไม่มีกล้อง';
+        selectEl.appendChild(opt); return inputs;
+      }
+      inputs.forEach((d,i)=>{
+        const opt = document.createElement('option');
+        opt.value = d.deviceId; opt.textContent = d.label || `กล้อง ${i+1}`;
+        selectEl.appendChild(opt);
+      });
+      const saved = localStorage.getItem(storageKey);
+      if (saved && inputs.some(d=>d.deviceId===saved)) selectEl.value = saved;
+      return inputs;
+    }
+    async function startWebcam(videoElement, callback, deviceId=null){
       if (!videoElement || videoElement.srcObject) return;
 
-      // ขอสิทธิ์กล้องหน้าเป็นหลัก ถ้าไม่พบ/เงื่อนไขจำกัด จะ fallback ไปกล้องหลัง
-      const user = { video:{ facingMode:{ideal:'user'}, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false };
-      const back = { video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false };
+      const base = { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} };
+      const user = deviceId ? { video:{ deviceId:{ exact: deviceId }, ...base }, audio:false }
+                            : { video:{ facingMode:{ideal:'user'}, ...base }, audio:false };
+      const back = { video:{ facingMode:{ideal:'environment'}, ...base }, audio:false };
 
       try{
         const stream = await navigator.mediaDevices.getUserMedia(user);
@@ -440,8 +475,7 @@
             const stream = await navigator.mediaDevices.getUserMedia(back);
             videoElement.srcObject = stream;
             videoElement.addEventListener('loadedmetadata', () => {
-              resizeCanvases();
-              if (callback) callback();
+              resizeCanvases(); if (callback) callback();
             }, { once:true });
             return;
           }catch(e2){ err = e2; }
@@ -450,11 +484,11 @@
         // แจ้งคำแนะนำตามอาการ
         let hint = '';
         if (err.name === 'NotAllowedError' || err.name === 'SecurityError'){
-          hint = 'เบราว์เซอร์ยังไม่อนุญาตใช้กล้อง<br>วิธีแก้: แตะรูปกุญแจ > Site settings > Camera = Allow แล้วรีโหลด หรือเปิดลิงก์นี้ด้วย Chrome ตัวจริง (ไม่ใช่ในแอปอื่น).';
+          hint = 'เบราว์เซอร์ยังไม่อนุญาตใช้กล้อง<br>วิธีแก้: แตะ/คลิกไอคอนกุญแจ > Site settings > Camera = Allow แล้วรีโหลด หรือเปิดลิงก์นี้ด้วย Chrome ตัวจริง.';
         } else if (err.name === 'NotReadableError'){
-          hint = 'อาจมีแอปอื่นกำลังใช้กล้องอยู่ (เช่น LINE/กล้องระบบ) ให้ปิดแอปนั้นก่อนแล้วลองใหม่.';
+          hint = 'อาจมีแอป/โปรเซสอื่นกำลังใช้กล้องอยู่ ให้ปิดแอปนั้นก่อนแล้วลองใหม่ (เช่น LINE/Zoom/Teams/โปรแกรมกล้อง).';
         } else if (err.name === 'OverconstrainedError' || err.name === 'NotFoundError'){
-          hint = 'ไม่พบกล้องตามที่ร้องขอ ลองสลับกล้องหน้าหลังหรือตรวจอุปกรณ์อีกครั้ง.';
+          hint = 'ไม่พบกล้องตามที่ร้องขอ ลองสลับกล้องหน้าหลัง หรือเลือกอุปกรณ์กล้องจากตัวเลือกด้านล่าง.';
         } else {
           hint = 'โปรดรีโหลดหน้า แล้วลองใหม่อีกครั้ง.';
         }
@@ -477,6 +511,18 @@
       });
     }
     window.addEventListener('resize', resizeCanvases);
+
+    // ตัวเลือกกล้อง & ปุ่มรีเฟรช
+    if (clockRefreshCameras) clockRefreshCameras.addEventListener('click', async ()=>{ await populateCameraSelect(clockCameraSelect,'cam_clock'); });
+    if (clockCameraSelect) clockCameraSelect.addEventListener('change', ()=>{
+      localStorage.setItem('cam_clock', clockCameraSelect.value);
+      stopWebcam(clockVideo); startWebcam(clockVideo, ()=>startRecognition(), clockCameraSelect.value || null);
+    });
+    if (regRefreshCameras) regRefreshCameras.addEventListener('click', async ()=>{ await populateCameraSelect(regCameraSelect,'cam_reg'); });
+    if (regCameraSelect) regCameraSelect.addEventListener('change', ()=>{
+      localStorage.setItem('cam_reg', regCameraSelect.value);
+      stopWebcam(video); startWebcam(video, null, regCameraSelect.value || null);
+    });
 
     // --- Face Recognition (Clock) ---
     async function loadRegisteredUsersForRecognition(){
@@ -694,7 +740,7 @@
       pinContainer.classList.toggle('hidden', !show);
       clockContainer.classList.toggle('hidden', show);
       if (show){ stopRecognition(); stopWebcam(clockVideo); }
-      else { startWebcam(clockVideo, () => startRecognition()); }
+      else { populateCameraSelect(clockCameraSelect,'cam_clock').then(()=>{ const id = clockCameraSelect?.value || null; startWebcam(clockVideo, ()=>startRecognition(), id); }); }
     }
     pinFallbackButton.addEventListener('click', ()=>showPinForm(true));
     pinCancelButton.addEventListener('click', ()=>showPinForm(false));
@@ -906,6 +952,11 @@
     // หยุดกล้องเมื่อสลับแท็บ/จอ เพื่อประหยัดแบต
     document.addEventListener('visibilitychange', ()=>{
       if (document.hidden){ stopRecognition(); stopWebcam(clockVideo); }
+      else if (currentTab==='clock'){
+        const id = (typeof clockCameraSelect!=='undefined' && clockCameraSelect) ? (clockCameraSelect.value||null) : null;
+        startWebcam(clockVideo, ()=>startRecognition(), id);
+      }
+    }); stopWebcam(clockVideo); }
       else if (currentTab==='clock'){ startWebcam(clockVideo, ()=>startRecognition()); }
     });
   </script>
