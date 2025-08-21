@@ -1,22 +1,9 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <!--
-    Version: v5.6.1a — First working build + 7 fixes
-    Date: 2025-08-21 (Asia/Bangkok)
-    Notes:
-      - [1] Shift-aware suggestion + confirm
-      - [2] Anti-duplicate within 3 minutes
-      - [3] Warn if yesterday left IN (flag note)
-      - [4] Server timestamp + Thai day cutoff
-      - [5] One-hand bottom bar + video max-height
-      - [6] Default tab=clock (+ ?tab=)
-      - [7] Front camera + mirrored preview
-    Deploy: rename this file to index.html at repo root (GitHub Pages), include ./models/
-  -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Face Attendance — v5.6.1a (First working build + 7 fixes)</title>
+  <title>Face Attendance — v5.6.1c (First working build + 7 fixes)</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -26,52 +13,30 @@
     body { font-family: 'Inter', system-ui, -apple-system, 'Kanit', sans-serif; background:#0b0b0e; color:#f5f5f7; }
     header { padding: var(--pad); display:flex; align-items:center; justify-content:space-between; gap:10px; }
     h1 { font-size: 16px; margin:0; opacity:.9; }
-
-    /* Tabs */
     .tabs { display:flex; gap:8px; }
     .tab { border:1px solid #2a2a2e; padding:8px 12px; border-radius:999px; font-weight:700; opacity:.85; cursor:pointer; }
     .tab.active { background:#1b1b20; border-color:#36363b; }
-
-    /* Video area */
-    #clock-video-container {
-      position: relative; width: 100%; max-width: 480px; margin: 0 auto; border-radius: var(--radius); overflow: hidden;
-      aspect-ratio: 3 / 4; max-height: 60vh; background:#111;
-    }
+    #clock-video-container { position: relative; width: 100%; max-width: 480px; margin: 0 auto; border-radius: var(--radius); overflow: hidden; aspect-ratio: 3 / 4; max-height: 60vh; background:#111; }
     #clockVideo, #clockCanvas { position:absolute; inset:0; width:100%; height:100%; object-fit: cover; }
-    /* 7) Mirrored preview */
     video { transform: scaleX(-1); }
-
-    /* 5) One-hand bottom bar */
     main { min-height: 100vh; position: relative; padding-bottom: 124px; }
-    .clock-bottom-bar{
-      position: fixed; left: 0; right: 0; bottom: 0;
-      padding: 12px calc(16px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
-      background: rgba(18,18,20,0.9); backdrop-filter: blur(8px); border-top:1px solid #242428;
-      display: none; grid-template-columns: 1fr; gap: 10px; z-index: 50;
-    }
-    .clock-bottom-bar .primary{
-      width: 100%; padding: 14px 18px; border-radius: 999px; font-size: 18px; font-weight: 800; color:#0b0b0e; background:#22c55e;
-    }
+    .clock-bottom-bar{ position: fixed; left: 0; right: 0; bottom: 0; padding: 12px calc(16px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); background: rgba(18,18,20,0.9); backdrop-filter: blur(8px); border-top:1px solid #242428; display: none; grid-template-columns: 1fr; gap: 10px; z-index: 50; }
+    .clock-bottom-bar .primary{ width: 100%; padding: 14px 18px; border-radius: 999px; font-size: 18px; font-weight: 800; color:#0b0b0e; background:#22c55e; }
     .clock-bottom-bar .row{ display:flex; gap:8px; }
     .clock-bottom-bar .ghost{ flex:1; padding:12px; border-radius: 999px; border:1px solid #2a2a2e; font-weight:700; background:#151518; color:#eaeaf0; }
-
     .card { border:1px solid #1e1e22; border-radius: var(--radius); background:#121216; padding: var(--pad); }
     .muted { color:#a5a7ae; }
-
     .badge { display:inline-flex; align-items:center; gap:6px; border:1px solid #2c2c32; border-radius: 999px; padding: 6px 10px; font-weight:700; }
     .badge.yellow { background:#2a2312; border-color:#463c22; color:#f6e3a1; }
     .badge.green { background:#0f2716; border-color:#16351f; color:#aef1c0; }
     .badge.red   { background:#2a1616; border-color:#4a2323; color:#f3b1b1; }
-
     .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:96px; background:#1c1c20; color:#fff; border:1px solid #2a2a2e; border-radius:999px; padding:10px 14px; z-index:60; display:none; }
-
-    /* Version badge */
     .version-badge{ position:fixed; top:10px; right:10px; z-index:70; font-size:12px; font-weight:800; padding:6px 10px; border-radius:999px; background:#11131a; border:1px solid #2a2a2e; color:#c9cbd3; opacity:.9; pointer-events:none; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Face Attendance — v5.6.1a · First working build + 7 fixes</h1>
+    <h1>Face Attendance — v5.6.1c · First working build + 7 fixes</h1>
     <nav class="tabs">
       <button id="tabClock" class="tab active" data-tab="clock">ลงเวลา</button>
       <button id="tabRegister" class="tab" data-tab="register">ลงทะเบียน</button>
@@ -79,10 +44,9 @@
     </nav>
   </header>
 
-  <div class="version-badge">v5.6.1a</div>
+  <div class="version-badge">v5.6.1c</div>
 
   <main class="px-4 pb-6">
-    <!-- CLOCK TAB -->
     <section id="clock" class="space-y-3">
       <div class="card space-y-3">
         <div class="flex items-center justify-between">
@@ -104,15 +68,13 @@
       </div>
     </section>
 
-    <!-- REGISTER TAB (placeholder minimal) -->
     <section id="register" class="space-y-3 hidden">
       <div class="card">
         <div class="font-bold mb-2">ลงทะเบียนพนักงาน (ย่อ)</div>
-        <div class="text-sm muted">*หน้านี้เป็น placeholder เพื่อให้ไฟล์ทำงานได้เดี่ยวๆ — โปรดใช้หน้าลงทะเบียนเดิมของคุณถ้ามี</div>
+        <div class="text-sm muted">*Placeholder* ใช้หน้าลงทะเบียนเดิมของคุณได้ตามปกติ</div>
       </div>
     </section>
 
-    <!-- HISTORY TAB (placeholder minimal) -->
     <section id="history" class="space-y-3 hidden">
       <div class="card">
         <div class="font-bold mb-2">ประวัติ (ย่อ)</div>
@@ -121,7 +83,6 @@
     </section>
   </main>
 
-  <!-- 5) One-hand bottom bar -->
   <div id="clock-bottom-bar" class="clock-bottom-bar">
     <button id="clockActionButton" class="primary" disabled>ยืนยันลงเวลา</button>
     <div class="row">
@@ -132,10 +93,9 @@
 
   <div id="toast" class="toast"></div>
 
-  <!-- Firebase + App -->
   <script type="module">
-    // ===== App Version & Cache-bust =====
-    const APP_VERSION = '5.6.1b';
+    // App version & cache-bust
+    const APP_VERSION = '5.6.1c';
     (function enforceQueryVersion(){
       try{
         const url = new URL(location.href);
@@ -143,10 +103,10 @@
           url.searchParams.set('v', APP_VERSION);
           location.replace(url.toString());
         }
-      }catch(err){ console.warn('Version param set failed', err); }
+      }catch(err){ /* ignore */ }
     })();
 
-    // เพิ่มพารามิเตอร์ v ให้ไฟล์โมเดล face-api.js อัตโนมัติ + fallback .bin ถ้า 404
+    // Patch fetch for /models/* (add v and fallback .bin)
     (function patchFetchForModels(){
       const origFetch = window.fetch.bind(window);
       window.fetch = async (input, init) => {
@@ -162,7 +122,7 @@
               input = (typeof input === 'string') ? urlStr : new Request(urlStr, input);
             }
           }
-        }catch(e){ /* ignore */ }
+        }catch(e){}
         const res = await origFetch(input, init);
         if (isModel && res && res.status === 404 && typeof urlStr === 'string' && !/\.bin(\?|$)/.test(urlStr)){
           try{
@@ -172,17 +132,17 @@
               const res2 = await origFetch(u2.toString(), init);
               if (res2 && res2.ok) return res2;
             }
-          }catch(e){ /* ignore */ }
+          }catch(e){}
         }
         return res;
       };
     })();
 
-    // ===== Firebase =====
+    // Firebase (ES modules)
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
     import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
     import {
-      getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, addDoc,
+      getFirestore, doc, setDoc, collection, getDocs,
       query, where, orderBy, limit, serverTimestamp
     } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
@@ -200,11 +160,12 @@
     const db = getFirestore(app);
     const appId = firebaseConfig.projectId;
 
-    // ===== Helpers =====
+    // Helpers
     const $ = (sel)=>document.querySelector(sel);
     const $$ = (sel)=>document.querySelectorAll(sel);
-    function showToast(msg){ const el = document.getElementById('toast'); if(!el) return; el.textContent = msg; el.style.display='block'; clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=> el.style.display='none', 2200); }
+    function showToast(msg){ const el = $('#toast'); if(!el) return; el.textContent = msg; el.style.display='block'; clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=> el.style.display='none', 2200); }
     function setBadge(el, text, color){ if(!el) return; el.textContent = text; el.className = 'badge' + (color?(' '+color):''); }
+    function showClockBar(show){ const el = $('#clock-bottom-bar'); if (!el) return; el.style.display = show ? 'grid' : 'none'; }
 
     function getBangkokNow(){
       const parts = new Intl.DateTimeFormat('sv-SE', { timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(new Date());
@@ -220,64 +181,144 @@
       const f = (d)=> new Intl.DateTimeFormat('sv-SE',{ timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit'}).format(d);
       return f(ts1) === f(ts2);
     }
-
     function isShiftOverlapNow(){ const now = getBangkokNow(); const min = now.getHours()*60 + now.getMinutes(); return (min >= 12*60 && min <= 15*60+30); }
     function suggestTypeForNow(lastTypeToday){ if (!lastTypeToday) return 'IN'; return lastTypeToday === 'IN' ? 'OUT' : 'IN'; }
 
     const MIN_GAP_MS = 3 * 60 * 1000;
     async function canRecord(employeeId){
       const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(1));
-      const snap = await getDocs(qy); if (snap.empty) return true; const last = snap.docs[0].data();
+      const snap = await getDocs(qy);
+      if (snap.empty) return true;
+      const last = snap.docs[0].data();
       const lastMs = last.timestamp && last.timestamp.toMillis ? last.timestamp.toMillis() : new Date(last.timestamp).getTime();
-      const nowMs = getBangkokNow().getTime(); return (nowMs - lastMs) >= MIN_GAP_MS;
+      const nowMs = getBangkokNow().getTime();
+      return (nowMs - lastMs) >= MIN_GAP_MS;
     }
-
     async function warnIfYesterdayOpenIN(employeeId){
       const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(1));
       const snap = await getDocs(qy); if (snap.empty) return false; const last = snap.docs[0].data();
       const lastAt = (last.timestamp && last.timestamp.toDate) ? last.timestamp.toDate() : new Date(last.timestamp);
-      const now = getBangkokNow(); if (last.type === 'IN' && !sameThaiDay(lastAt, now)){ showToast('เตือน: เมื่อวานยังไม่ได้ออกงาน'); window.__missingOutYesterday = true; return true; } return false;
+      const now = getBangkokNow();
+      if (last.type === 'IN' && !sameThaiDay(lastAt, now)){ showToast('เตือน: เมื่อวานยังไม่ได้ออกงาน'); window.__missingOutYesterday = true; return true; }
+      return false;
     }
-
     async function getLastTypeToday(employeeId){
       const r = getBangkokDayRange(getBangkokNow());
       const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(10));
-      const snap = await getDocs(qy); let lastType = null; snap.forEach(d=>{ const row = d.data(); const ms = row.timestamp && row.timestamp.toMillis ? row.timestamp.toMillis() : new Date(row.timestamp).getTime(); if (ms >= r.startOfDay && ms <= r.endOfDay && !lastType){ lastType = row.type; } }); return lastType;
+      const snap = await getDocs(qy); let lastType = null;
+      snap.forEach(d=>{ const row = d.data(); const ms = row.timestamp && row.timestamp.toMillis ? row.timestamp.toMillis() : new Date(row.timestamp).getTime(); if (ms >= r.startOfDay && ms <= r.endOfDay && !lastType){ lastType = row.type; } });
+      return lastType;
     }
-
     async function recordAttendance(user, chosenType, method){
       if (!(await canRecord(user.id))){ showToast('เพิ่งลงเวลาไปไม่นาน กรุณารอ 3 นาที'); return; }
       await setDoc(doc(collection(db, 'artifacts/' + appId + '/public/data/attendance')), { employeeId: user.id, employeeName: user.name, type: chosenType, method: method, note: window.__missingOutYesterday ? 'yesterday_out_missing' : null, timestamp: serverTimestamp() });
       window.__missingOutYesterday = false; showToast('บันทึกสำเร็จ'); await refreshTodayList(user.id);
     }
+    async function loadEmployees(){
+      const arr = [];
+      try{ const snap = await getDocs(collection(db, 'artifacts/' + appId + '/public/data/employees')); snap.forEach(d=> arr.push(d.data())); }catch(e){ console.warn('loadEmployees', e); }
+      return arr;
+    }
 
-    async function loadEmployees(){ const arr = []; try{ const snap = await getDocs(collection(db, 'artifacts/' + appId + '/public/data/employees')); snap.forEach(d=> arr.push(d.data())); }catch(e){ console.warn('loadEmployees', e); } return arr; }
-
-    // ===== Webcam =====
+    // Webcam
     let stream = null; let usingFront = true;
-    async function startWebcam(){ try{ stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'user' }, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false }); document.getElementById('clockVideo').srcObject = stream; } catch(e){ setBadge(document.getElementById('clockStatus'),'เปิดกล้องไม่ได้','red'); console.error(e); } }
-    async function flipCamera(){ try{ usingFront = !usingFront; if (stream){ stream.getTracks().forEach(t=>t.stop()); } stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal: usingFront ? 'user' : 'environment' }, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} } }); document.getElementById('clockVideo').srcObject = stream; }catch(e){ showToast('สลับกล้องไม่สำเร็จ'); console.error(e); } }
+    async function startWebcam(){
+      try{
+        stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'user' }, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false });
+        $('#clockVideo').srcObject = stream;
+      } catch(e){ setBadge($('#clockStatus'),'เปิดกล้องไม่ได้','red'); console.error(e); }
+    }
+    async function flipCamera(){
+      try{
+        usingFront = !usingFront;
+        if (stream){ stream.getTracks().forEach(t=>t.stop()); }
+        stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal: usingFront ? 'user' : 'environment' }, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} } });
+        $('#clockVideo').srcObject = stream;
+      }catch(e){ showToast('สลับกล้องไม่สำเร็จ'); console.error(e); }
+    }
 
-    // ===== Tabs =====
+    // Tabs
     let currentTab = 'clock';
-    function showClockBar(show){ const el = document.getElementById('clock-bottom-bar'); if (!el) return; el.style.display = show ? 'grid' : 'none'; }
-    function switchTab(tab){ currentTab = tab; ['clock','register','history'].forEach(id=>{ const sec = document.getElementById(id); if (sec) sec.classList.add('hidden'); }); const tgt = document.getElementById(tab); if (tgt) tgt.classList.remove('hidden'); document.querySelectorAll('.tab').forEach(b=> b.classList.remove('active')); const act = document.querySelector('.tab[data-tab="' + tab + '"]'); if (act) act.classList.add('active'); showClockBar(tab === 'clock'); }
-
+    function switchTab(tab){
+      currentTab = tab;
+      ['clock','register','history'].forEach(id=>{ const sec = document.getElementById(id); if (sec) sec.classList.add('hidden'); });
+      const tgt = document.getElementById(tab); if (tgt) tgt.classList.remove('hidden');
+      document.querySelectorAll('.tab').forEach(b=> b.classList.remove('active'));
+      const act = document.querySelector('.tab[data-tab="'+tab+'"]'); if (act) act.classList.add('active');
+      showClockBar(tab === 'clock');
+    }
     document.querySelectorAll('.tab').forEach(btn=> btn.addEventListener('click', ()=> switchTab(btn.dataset.tab)));
     const params = new URLSearchParams(location.search); switchTab(params.get('tab') || 'clock');
 
     document.getElementById('flipBtn').addEventListener('click', flipCamera);
     document.getElementById('notMeBtn').addEventListener('click', function(){ activeUser = null; window.activeUser = null; updateClockUi(); });
-    document.getElementById('clockActionButton').addEventListener('click', async function(){ const btn = document.getElementById('clockActionButton'); if (!activeUser || btn.disabled) return; btn.disabled = true; const prev = btn.textContent; btn.textContent = 'กำลังบันทึก…'; try { const lastTypeToday = await getLastTypeToday(activeUser.id); const chosen = suggestTypeForNow(lastTypeToday); await recordAttendance(activeUser, chosen, 'Face'); } catch (e){ console.error(e); showToast('บันทึกล้มเหลว'); } finally { btn.textContent = prev; setTimeout(function(){ btn.disabled = false; }, 1500); } });
+    document.getElementById('clockActionButton').addEventListener('click', async function(){
+      const btn = document.getElementById('clockActionButton');
+      if (!activeUser || btn.disabled) return;
+      btn.disabled = true; const prev = btn.textContent; btn.textContent = 'กำลังบันทึก…';
+      try { const lastTypeToday = await getLastTypeToday(activeUser.id); const chosen = suggestTypeForNow(lastTypeToday); await recordAttendance(activeUser, chosen, 'Face'); }
+      catch (e){ console.error(e); showToast('บันทึกล้มเหลว'); }
+      finally { btn.textContent = prev; setTimeout(()=> btn.disabled = false, 1500); }
+    });
 
-    // ===== Main =====
+    // Main
     let activeUser = null; window.activeUser = null; window.__missingOutYesterday = false;
+    async function refreshTodayList(employeeId){
+      const ul = document.getElementById('todayList'); if (!ul) return;
+      const r = getBangkokDayRange(getBangkokNow());
+      const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(20));
+      const snap = await getDocs(qy); ul.innerHTML = '';
+      snap.forEach(d=>{ const row = d.data(); const t = (row.timestamp && row.timestamp.toDate) ? row.timestamp.toDate() : new Date(row.timestamp); const ms = (row.timestamp && row.timestamp.toMillis) ? row.timestamp.toMillis() : new Date(row.timestamp).getTime(); if (ms < r.startOfDay || ms > r.endOfDay) return; const li = document.createElement('li'); li.textContent = row.type + ' • ' + new Intl.DateTimeFormat('th-TH',{ hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Bangkok' }).format(t) + (row.note ? ' • ' + row.note : ''); ul.appendChild(li); });
+    }
+    async function updateClockUi(){
+      const status = document.getElementById('clockStatus');
+      const nameEl = document.getElementById('activeUserName');
+      const suggestEl = document.getElementById('suggestText');
+      const btn = document.getElementById('clockActionButton');
+      showClockBar(currentTab === 'clock');
+      document.getElementById('shiftWarning').style.display = isShiftOverlapNow() ? 'inline-flex' : 'none';
+      if (activeUser){
+        nameEl.textContent = activeUser.name + ' (' + activeUser.id + ')';
+        setBadge(status, 'พบผู้ใช้', 'green');
+        await warnIfYesterdayOpenIN(activeUser.id);
+        const lastTypeToday = await getLastTypeToday(activeUser.id);
+        const suggestion = suggestTypeForNow(lastTypeToday);
+        suggestEl.textContent = suggestion === 'IN' ? 'เข้า' : 'ออก';
+        btn.textContent = 'ยืนยันลงเวลา: ' + (suggestion === 'IN' ? 'เข้า' : 'ออก');
+        btn.disabled = false;
+        await refreshTodayList(activeUser.id);
+      } else {
+        nameEl.textContent = '—'; suggestEl.textContent = '—';
+        setBadge(status, 'กำลังหาผู้ใช้…', '');
+        btn.textContent = 'ยืนยันลงเวลา'; btn.disabled = true;
+      }
+    }
+    function resolveUserByDescriptor(descriptor){
+      try{
+        if (window.faceMatcher && descriptor){
+          const result = window.faceMatcher.findBestMatch(descriptor);
+          if (result && result.label && result.label !== 'unknown'){
+            const list = Array.isArray(window.registeredUsersData)?window.registeredUsersData:[];
+            let u = list.find(x=> x.id===result.label || x.employeeId===result.label || x.name===result.label);
+            if (!u) u = { id: result.label, name: result.label };
+            return u;
+          }
+        }
+      }catch(e){ console.warn('resolveUserByDescriptor failed', e); }
+      if (Array.isArray(window.__employees) && window.__employees.length) return window.__employees[0];
+      return null;
+    }
+
     (async function main(){
       try {
-        await signInAnonymously(auth); setBadge(document.getElementById('clockStatus'),'พร้อมใช้งาน','green');
+        await signInAnonymously(auth);
+        setBadge(document.getElementById('clockStatus'),'พร้อมใช้งาน','green');
       } catch (e) {
-        setBadge(document.getElementById('clockStatus'),'เข้าสู่ระบบไม่สำเร็จ','red'); console.error('Auth error:', e); showToast((String(e && (e.message||e.code))).includes('API key') ? 'API key ไม่ถูกต้อง/ไม่มีสิทธิ์' : 'ลงชื่อเข้าใช้ไม่สำเร็จ'); return; }
-
+        setBadge(document.getElementById('clockStatus'),'เข้าสู่ระบบไม่สำเร็จ','red');
+        console.error('Auth error:', e);
+        showToast((String(e && (e.message||e.code))).includes('API key') ? 'API key ไม่ถูกต้อง/ไม่มีสิทธิ์' : 'ลงชื่อเข้าใช้ไม่สำเร็จ');
+        return;
+      }
       await startWebcam();
       try{
         await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
@@ -288,19 +329,26 @@
 
       const employees = await loadEmployees(); window.__employees = employees;
 
-      function resolveUserByDescriptor(descriptor){
-        try{ if (window.faceMatcher && descriptor){ const result = window.faceMatcher.findBestMatch(descriptor); if (result && result.label && result.label !== 'unknown'){ const list = Array.isArray(window.registeredUsersData)?window.registeredUsersData:[]; let u = list.find(function(x){ return x.id===result.label || x.employeeId===result.label || x.name===result.label; }); if (!u) u = { id: result.label, name: result.label }; return u; } } }catch(e){ console.warn('resolveUserByDescriptor failed', e); }
-        if (Array.isArray(window.__employees) && window.__employees.length) return window.__employees[0]; return null;
+      async function loop(){
+        const video = document.getElementById('clockVideo');
+        const canvas = document.getElementById('clockCanvas');
+        if (!video || video.readyState < 2){ requestAnimationFrame(loop); return; }
+        const dims = faceapi.matchDimensions(canvas, { width: video.videoWidth, height: video.videoHeight }, true);
+        let det = null;
+        try{
+          det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 })).withFaceLandmarks().withFaceDescriptor();
+        }catch(e){ console.error('detect error', e); }
+        const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+        if (det){
+          const resized = faceapi.resizeResults(det, dims);
+          faceapi.draw.drawDetections(canvas, resized);
+          const user = resolveUserByDescriptor(det.descriptor);
+          activeUser = user; window.activeUser = user;
+        } else { activeUser = null; window.activeUser = null; }
+        updateClockUi();
+        requestAnimationFrame(loop);
       }
-
-      async function refreshTodayList(employeeId){ const ul = document.getElementById('todayList'); if (!ul) return; const r = getBangkokDayRange(getBangkokNow()); const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(20)); const snap = await getDocs(qy); ul.innerHTML = ''; snap.forEach(function(d){ const row = d.data(); const t = (row.timestamp && row.timestamp.toDate) ? row.timestamp.toDate() : new Date(row.timestamp); const ms = (row.timestamp && row.timestamp.toMillis) ? row.timestamp.toMillis() : new Date(row.timestamp).getTime(); if (ms < r.startOfDay || ms > r.endOfDay) return; const li = document.createElement('li'); li.textContent = row.type + ' • ' + new Intl.DateTimeFormat('th-TH',{ hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Bangkok' }).format(t) + (row.note ? ' • ' + row.note : ''); ul.appendChild(li); }); }
-
-      async function updateClockUi(){ const status = document.getElementById('clockStatus'); const nameEl = document.getElementById('activeUserName'); const suggestEl = document.getElementById('suggestText'); const btn = document.getElementById('clockActionButton'); showClockBar(currentTab === 'clock'); document.getElementById('shiftWarning').style.display = isShiftOverlapNow() ? 'inline-flex' : 'none'; if (activeUser){ nameEl.textContent = activeUser.name + ' (' + activeUser.id + ')'; setBadge(status, 'พบผู้ใช้', 'green'); await warnIfYesterdayOpenIN(activeUser.id); const lastTypeToday = await getLastTypeToday(activeUser.id); const suggestion = suggestTypeForNow(lastTypeToday); suggestEl.textContent = suggestion === 'IN' ? 'เข้า' : 'ออก'; btn.textContent = 'ยืนยันลงเวลา: ' + (suggestion === 'IN' ? 'เข้า' : 'ออก'); btn.disabled = false; await refreshTodayList(activeUser.id); } else { nameEl.textContent = '—'; suggestEl.textContent = '—'; setBadge(status, 'กำลังหาผู้ใช้…', ''); btn.textContent = 'ยืนยันลงเวลา'; btn.disabled = true; } }
-
-      async function recognitionLoop(){ const video = document.getElementById('clockVideo'); const canvas = document.getElementById('clockCanvas'); if (!video || video.readyState < 2){ requestAnimationFrame(recognitionLoop); return; } const dims = faceapi.matchDimensions(canvas, { width: video.videoWidth, height: video.videoHeight }, true); let det = null; try{ det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 })).withFaceLandmarks().withFaceDescriptor(); }catch(e){ console.error('detect error', e); } const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); if (det){ const resized = faceapi.resizeResults(det, dims); faceapi.draw.drawDetections(canvas, resized); const user = resolveUserByDescriptor(det.descriptor); activeUser = user; window.activeUser = user; } else { activeUser = null; window.activeUser = null; } updateClockUi(); requestAnimationFrame(recognitionLoop); }
-
-      recognitionLoop();
-      updateClockUi();
+      loop();
     })();
   </script>
 </body>
