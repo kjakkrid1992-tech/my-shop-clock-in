@@ -135,19 +135,18 @@
   <!-- Firebase + App -->
   <script type="module">
     // ===== App Version & Cache-bust =====
-    const APP_VERSION = '5.6.1a';
+    const APP_VERSION = '5.6.1b';
     (function enforceQueryVersion(){
       try{
         const url = new URL(location.href);
         if (url.searchParams.get('v') !== APP_VERSION){
           url.searchParams.set('v', APP_VERSION);
-          // ใช้ replace เพื่อไม่ทิ้งประวัติย้อนกลับ
           location.replace(url.toString());
         }
       }catch(err){ console.warn('Version param set failed', err); }
     })();
 
-    // เพิ่มพารามิเตอร์ v ให้ไฟล์โมเดล face-api.js อัตโนมัติ เพื่อกันแคชเก่า
+    // เพิ่มพารามิเตอร์ v ให้ไฟล์โมเดล face-api.js อัตโนมัติ + fallback .bin ถ้า 404
     (function patchFetchForModels(){
       const origFetch = window.fetch.bind(window);
       window.fetch = async (input, init) => {
@@ -156,7 +155,7 @@
         try{
           if (urlStr){
             const u = new URL(urlStr, location.href);
-            if (u.pathname.includes('/models/')){ // เฉพาะไฟล์โมเดล
+            if (u.pathname.includes('/models/')){
               isModel = true;
               if (!u.searchParams.has('v')) u.searchParams.set('v', APP_VERSION);
               urlStr = u.toString();
@@ -164,17 +163,13 @@
             }
           }
         }catch(e){ /* ignore */ }
-
         const res = await origFetch(input, init);
-        // Fallback: ถ้า 404 และเป็นไฟล์ใน /models/ และยังไม่มี .bin → ลองใหม่ด้วย .bin
         if (isModel && res && res.status === 404 && typeof urlStr === 'string' && !/\.bin(\?|$)/.test(urlStr)){
           try{
             const u2 = new URL(urlStr, location.href);
-            // ถ้ามี -shardN ต่อท้าย ชื่อไฟล์ ให้เติม .bin
             if (!u2.pathname.endsWith('.bin')){
               u2.pathname = u2.pathname + '.bin';
-              const retryReq = (typeof input === 'string') ? u2.toString() : new Request(u2.toString(), input);
-              const res2 = await origFetch(retryReq, init);
+              const res2 = await origFetch(u2.toString(), init);
               if (res2 && res2.ok) return res2;
             }
           }catch(e){ /* ignore */ }
@@ -183,7 +178,7 @@
       };
     })();
 
-    // ===== Firebase init =====
+    // ===== Firebase =====
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
     import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
     import {
@@ -191,7 +186,6 @@
       query, where, orderBy, limit, serverTimestamp
     } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-    // === เติมคอนฟิกของโปรเจกต์คุณ (จากที่คุณให้ไว้) ===
     const firebaseConfig = {
       apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
       authDomain: "face-attendance-app-d439d.firebaseapp.com",
@@ -204,34 +198,22 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const appId = firebaseConfig.projectId; // ใช้ projectId เป็น appId
+    const appId = firebaseConfig.projectId;
 
-    await signInAnonymously(auth);
-
-    // ====== UI helpers ======
+    // ===== Helpers =====
     const $ = (sel)=>document.querySelector(sel);
     const $$ = (sel)=>document.querySelectorAll(sel);
+    function showToast(msg){ const el = document.getElementById('toast'); if(!el) return; el.textContent = msg; el.style.display='block'; clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=> el.style.display='none', 2200); }
+    function setBadge(el, text, color){ if(!el) return; el.textContent = text; el.className = 'badge' + (color?(' '+color):''); }
 
-    function showToast(msg){
-      const el = $('#toast'); el.textContent = msg; el.style.display='block';
-      clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(()=> el.style.display='none', 2200);
-    }
-
-    function showClockBar(show=true){ $('#clock-bottom-bar').style.display = show ? 'grid' : 'none'; }
-
-    function setBadge(el, text, color){
-      el.textContent = text; el.className = 'badge' + (color?(' '+color):'');
-    }
-
-    // ====== Time helpers (4) server + Thai day ======
     function getBangkokNow(){
       const parts = new Intl.DateTimeFormat('sv-SE', { timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(new Date());
       return new Date(parts.replace(' ', 'T') + '+07:00');
     }
     function getBangkokDayRange(date = new Date()){
       const dayKey = new Intl.DateTimeFormat('sv-SE',{ timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit' }).format(date);
-      const startOfDay = Date.parse(`${dayKey}T00:00:00+07:00`);
-      const endOfDay   = Date.parse(`${dayKey}T23:59:59.999+07:00`);
+      const startOfDay = Date.parse(dayKey + 'T00:00:00+07:00');
+      const endOfDay   = Date.parse(dayKey + 'T23:59:59.999+07:00');
       return { startOfDay, endOfDay, dayKey };
     }
     function sameThaiDay(ts1, ts2){
@@ -239,279 +221,87 @@
       return f(ts1) === f(ts2);
     }
 
-    // ====== (1) Suggest IN/OUT with confirmation ======
-    function suggestTypeForNow(lastTypeToday){
-      if (!lastTypeToday) return 'IN';
-      return lastTypeToday === 'IN' ? 'OUT' : 'IN';
-    }
+    function isShiftOverlapNow(){ const now = getBangkokNow(); const min = now.getHours()*60 + now.getMinutes(); return (min >= 12*60 && min <= 15*60+30); }
+    function suggestTypeForNow(lastTypeToday){ if (!lastTypeToday) return 'IN'; return lastTypeToday === 'IN' ? 'OUT' : 'IN'; }
 
-    function isShiftOverlapNow(){
-      const now = getBangkokNow();
-      const min = now.getHours()*60 + now.getMinutes();
-      return (min >= 12*60 && min <= 15*60+30); // 12:00–15:30
-    }
-
-    // ====== (2) Anti duplicate within 3 minutes ======
     const MIN_GAP_MS = 3 * 60 * 1000;
     async function canRecord(employeeId){
-      const qy = query(
-        collection(db, `artifacts/${appId}/public/data/attendance`),
-        where('employeeId', '==', employeeId),
-        orderBy('timestamp','desc'),
-        limit(1)
-      );
-      const snap = await getDocs(qy);
-      if (snap.empty) return true;
-      const last = snap.docs[0].data();
-      const lastMs = last.timestamp?.toMillis?.() ?? new Date(last.timestamp).getTime();
-      const nowMs  = getBangkokNow().getTime();
-      return (nowMs - lastMs) >= MIN_GAP_MS;
+      const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(1));
+      const snap = await getDocs(qy); if (snap.empty) return true; const last = snap.docs[0].data();
+      const lastMs = last.timestamp && last.timestamp.toMillis ? last.timestamp.toMillis() : new Date(last.timestamp).getTime();
+      const nowMs = getBangkokNow().getTime(); return (nowMs - lastMs) >= MIN_GAP_MS;
     }
 
-    // (3) Warn if yesterday left open IN
     async function warnIfYesterdayOpenIN(employeeId){
-      const qy = query(
-        collection(db, `artifacts/${appId}/public/data/attendance`),
-        where('employeeId','==',employeeId),
-        orderBy('timestamp','desc'),
-        limit(1)
-      );
-      const snap = await getDocs(qy);
-      if (snap.empty) return false;
-      const last = snap.docs[0].data();
-      const lastAt = last.timestamp?.toDate?.() ?? new Date(last.timestamp);
-      const now = getBangkokNow();
-      if (last.type === 'IN' && !sameThaiDay(lastAt, now)){
-        showToast('เตือน: เมื่อวานยังไม่ได้ออกงาน');
-        window.__missingOutYesterday = true; return true;
-      }
-      return false;
+      const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(1));
+      const snap = await getDocs(qy); if (snap.empty) return false; const last = snap.docs[0].data();
+      const lastAt = (last.timestamp && last.timestamp.toDate) ? last.timestamp.toDate() : new Date(last.timestamp);
+      const now = getBangkokNow(); if (last.type === 'IN' && !sameThaiDay(lastAt, now)){ showToast('เตือน: เมื่อวานยังไม่ได้ออกงาน'); window.__missingOutYesterday = true; return true; } return false;
     }
 
     async function getLastTypeToday(employeeId){
-      const { startOfDay, endOfDay } = getBangkokDayRange(getBangkokNow());
-      const qy = query(
-        collection(db, `artifacts/${appId}/public/data/attendance`),
-        where('employeeId','==',employeeId),
-        orderBy('timestamp','desc'),
-        limit(10)
-      );
-      const snap = await getDocs(qy);
-      let lastType = null;
-      snap.forEach(d=>{
-        const row = d.data();
-        const t = row.timestamp?.toMillis?.() ?? new Date(row.timestamp).getTime();
-        if (t >= startOfDay && t <= endOfDay && !lastType){ lastType = row.type; }
-      });
-      return lastType; // 'IN' | 'OUT' | null
+      const r = getBangkokDayRange(getBangkokNow());
+      const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(10));
+      const snap = await getDocs(qy); let lastType = null; snap.forEach(d=>{ const row = d.data(); const ms = row.timestamp && row.timestamp.toMillis ? row.timestamp.toMillis() : new Date(row.timestamp).getTime(); if (ms >= r.startOfDay && ms <= r.endOfDay && !lastType){ lastType = row.type; } }); return lastType;
     }
 
     async function recordAttendance(user, chosenType, method){
       if (!(await canRecord(user.id))){ showToast('เพิ่งลงเวลาไปไม่นาน กรุณารอ 3 นาที'); return; }
-      await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
-        employeeId: user.id,
-        employeeName: user.name,
-        type: chosenType,
-        method,
-        note: window.__missingOutYesterday ? 'yesterday_out_missing' : null,
-        timestamp: serverTimestamp()
-      });
-      window.__missingOutYesterday = false;
-      showToast('บันทึกสำเร็จ');
-      await refreshTodayList(user.id);
+      await setDoc(doc(collection(db, 'artifacts/' + appId + '/public/data/attendance')), { employeeId: user.id, employeeName: user.name, type: chosenType, method: method, note: window.__missingOutYesterday ? 'yesterday_out_missing' : null, timestamp: serverTimestamp() });
+      window.__missingOutYesterday = false; showToast('บันทึกสำเร็จ'); await refreshTodayList(user.id);
     }
 
-    // ====== Demo: load registered users (minimal) ======
-    // คาดหวังคอลเลคชัน employees: { id, name }
-    async function loadEmployees(){
-      const arr = [];
-      const snap = await getDocs(collection(db, `artifacts/${appId}/public/data/employees`));
-      snap.forEach(d=> arr.push(d.data()));
-      return arr; // [{id,name}]
-    }
+    async function loadEmployees(){ const arr = []; try{ const snap = await getDocs(collection(db, 'artifacts/' + appId + '/public/data/employees')); snap.forEach(d=> arr.push(d.data())); }catch(e){ console.warn('loadEmployees', e); } return arr; }
 
-    // ====== Face recognition (minimal wire-up; ใช้โมเดล tiny) ======
-    let stream, usingFront = true;
-    async function startWebcam(){
-      try{
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'user' }, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false
-        });
-        $('#clockVideo').srcObject = stream;
-      }catch(e){ setBadge($('#clockStatus'),'เปิดกล้องไม่ได้','red'); console.error(e); }
-    }
+    // ===== Webcam =====
+    let stream = null; let usingFront = true;
+    async function startWebcam(){ try{ stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'user' }, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false }); document.getElementById('clockVideo').srcObject = stream; } catch(e){ setBadge(document.getElementById('clockStatus'),'เปิดกล้องไม่ได้','red'); console.error(e); } }
+    async function flipCamera(){ try{ usingFront = !usingFront; if (stream){ stream.getTracks().forEach(t=>t.stop()); } stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal: usingFront ? 'user' : 'environment' }, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} } }); document.getElementById('clockVideo').srcObject = stream; }catch(e){ showToast('สลับกล้องไม่สำเร็จ'); console.error(e); } }
 
-    async function flipCamera(){
-      try{
-        usingFront = !usingFront;
-        if (stream){ stream.getTracks().forEach(t=>t.stop()); }
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: usingFront ? 'user':'environment' }, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }
-        });
-        $('#clockVideo').srcObject = stream;
-      }catch(e){ showToast('สลับกล้องไม่สำเร็จ'); console.error(e); }
-    }
-
-    // โหลดโมเดลจากโฟลเดอร์ ./models (ต้องมีไฟล์โมเดลในโปรเจกต์เดิมอยู่แล้ว)
-    try{
-      await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
-      await faceapi.nets.faceLandmark68Net.loadFromUri('./models');
-      await faceapi.nets.faceRecognitionNet.loadFromUri('./models');
-      setBadge($('#clockStatus'),'โมเดลพร้อมใช้งาน','green');
-    }catch(e){
-      setBadge($('#clockStatus'),'โหลดโมเดลล้มเหลว','red');
-      console.error('Load models error', e);
-    }
-
-    // ====== Recognition loop (interop v5.6)
-    // ใช้ฐานเดิมถ้ามี: window.faceMatcher + window.registeredUsersData
-    // ถ้าไม่มี ให้ fallback ที่ employees collection
- ======
-    // หมายเหตุ: ส่วนนี้เป็นโครงให้ผูกกับระบบ embeddings เดิมของคุณ
-    const employees = await loadEmployees();
-    window.__employees = employees;
-    let activeUser = null;
-    window.activeUser = null;
-
-    function resolveUserByDescriptor(descriptor){
-      try{
-        if (window.faceMatcher && descriptor){
-          const result = window.faceMatcher.findBestMatch(descriptor);
-          if (result && result.label && result.label !== 'unknown'){
-            const list = Array.isArray(window.registeredUsersData) ? window.registeredUsersData : [];
-            let u = list.find(u=> u.id===result.label || u.employeeId===result.label || u.name===result.label);
-            if (!u) u = { id: result.label, name: result.label };
-            return u;
-          }
-        }
-      }catch(e){ console.warn('resolveUserByDescriptor failed', e); }
-      // fallback: ใช้คนแรกใน employees เพื่อให้ flow ทำงานระหว่างทดสอบ
-      if (Array.isArray(window.__employees) && window.__employees.length) return window.__employees[0];
-      return null;
-    }
-
-    async function recognitionLoop(){
-      const video = $('#clockVideo');
-      const canvas = $('#clockCanvas');
-      if (!video || video.readyState < 2){ requestAnimationFrame(recognitionLoop); return; }
-
-      const dims = faceapi.matchDimensions(canvas, { width: video.videoWidth, height: video.videoHeight }, true);
-      let det = null;
-      try{
-        det = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }))
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-      }catch(e){ console.error('detect error', e); }
-
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-
-      if (det){
-        const resized = faceapi.resizeResults(det, dims);
-        faceapi.draw.drawDetections(canvas, resized);
-        const user = resolveUserByDescriptor(det.descriptor);
-        activeUser = user; window.activeUser = user;
-      } else {
-        activeUser = null; window.activeUser = null;
-      }
-
-      updateClockUi();
-      requestAnimationFrame(recognitionLoop);
-    }
-
-    // ====== UI Clock behaviors ======
-    async function updateClockUi(){
-      const status = $('#clockStatus');
-      const nameEl = $('#activeUserName');
-      const suggestEl = $('#suggestText');
-      const btn = $('#clockActionButton');
-
-      // 5) show fixed bar only on clock tab
-      showClockBar(currentTab === 'clock');
-
-      // overlap banner
-      $('#shiftWarning').style.display = isShiftOverlapNow() ? 'inline-flex' : 'none';
-
-      if (activeUser){
-        nameEl.textContent = `${activeUser.name} (${activeUser.id})`;
-        setBadge(status, 'พบผู้ใช้', 'green');
-        await warnIfYesterdayOpenIN(activeUser.id);
-        const lastTypeToday = await getLastTypeToday(activeUser.id);
-        const suggestion = suggestTypeForNow(lastTypeToday);
-        suggestEl.textContent = suggestion === 'IN' ? 'เข้า' : 'ออก';
-        btn.textContent = `ยืนยันลงเวลา: ${suggestion === 'IN' ? 'เข้า' : 'ออก'}`;
-        btn.disabled = false;
-      } else {
-        nameEl.textContent = '—'; suggestEl.textContent = '—';
-        setBadge(status, 'กำลังหาผู้ใช้…', '');
-        btn.textContent = 'ยืนยันลงเวลา';
-        btn.disabled = true;
-      }
-
-      // refresh today list for active user
-      if (activeUser){ await refreshTodayList(activeUser.id); }
-    }
-
-    async function refreshTodayList(employeeId){
-      const ul = $('#todayList');
-      const { startOfDay, endOfDay } = getBangkokDayRange(getBangkokNow());
-      const qy = query(
-        collection(db, `artifacts/${appId}/public/data/attendance`),
-        where('employeeId','==',employeeId),
-        orderBy('timestamp','desc'),
-        limit(20)
-      );
-      const snap = await getDocs(qy);
-      ul.innerHTML = '';
-      snap.forEach(d=>{
-        const row = d.data();
-        const t = row.timestamp?.toDate?.() ?? new Date(row.timestamp);
-        const ms = row.timestamp?.toMillis?.() ?? new Date(row.timestamp).getTime();
-        if (ms < startOfDay || ms > endOfDay) return;
-        const li = document.createElement('li');
-        li.textContent = `${row.type} • ${new Intl.DateTimeFormat('th-TH',{ hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Bangkok' }).format(t)}${row.note?' • '+row.note:''}`;
-        ul.appendChild(li);
-      });
-    }
-
-    // ====== Tabs (6) default clock + ?tab= ======
+    // ===== Tabs =====
     let currentTab = 'clock';
-    function switchTab(tab){
-      currentTab = tab;
-      $$('#clock, #register, #history').forEach(el=> el.classList.add('hidden'));
-      $(`#${tab}`).classList.remove('hidden');
-      $$('.tab').forEach(b=> b.classList.remove('active'));
-      $(`.tab[data-tab="${tab}"]`).classList.add('active');
-      if (tab === 'clock'){ showClockBar(true); } else { showClockBar(false); }
-    }
+    function showClockBar(show){ const el = document.getElementById('clock-bottom-bar'); if (!el) return; el.style.display = show ? 'grid' : 'none'; }
+    function switchTab(tab){ currentTab = tab; ['clock','register','history'].forEach(id=>{ const sec = document.getElementById(id); if (sec) sec.classList.add('hidden'); }); const tgt = document.getElementById(tab); if (tgt) tgt.classList.remove('hidden'); document.querySelectorAll('.tab').forEach(b=> b.classList.remove('active')); const act = document.querySelector('.tab[data-tab="' + tab + '"]'); if (act) act.classList.add('active'); showClockBar(tab === 'clock'); }
 
-    const params = new URLSearchParams(location.search);
-    const initialTab = params.get('tab') || 'clock';
-    switchTab(initialTab);
+    document.querySelectorAll('.tab').forEach(btn=> btn.addEventListener('click', ()=> switchTab(btn.dataset.tab)));
+    const params = new URLSearchParams(location.search); switchTab(params.get('tab') || 'clock');
 
-    $$('.tab').forEach(btn=> btn.addEventListener('click', ()=> switchTab(btn.dataset.tab)));
+    document.getElementById('flipBtn').addEventListener('click', flipCamera);
+    document.getElementById('notMeBtn').addEventListener('click', function(){ activeUser = null; window.activeUser = null; updateClockUi(); });
+    document.getElementById('clockActionButton').addEventListener('click', async function(){ const btn = document.getElementById('clockActionButton'); if (!activeUser || btn.disabled) return; btn.disabled = true; const prev = btn.textContent; btn.textContent = 'กำลังบันทึก…'; try { const lastTypeToday = await getLastTypeToday(activeUser.id); const chosen = suggestTypeForNow(lastTypeToday); await recordAttendance(activeUser, chosen, 'Face'); } catch (e){ console.error(e); showToast('บันทึกล้มเหลว'); } finally { btn.textContent = prev; setTimeout(function(){ btn.disabled = false; }, 1500); } });
 
-    // ====== Events ======
-    $('#flipBtn').addEventListener('click', flipCamera);
-    $('#notMeBtn').addEventListener('click', ()=>{ activeUser = null; window.activeUser = null; updateClockUi(); });
-
-    $('#clockActionButton').addEventListener('click', async ()=>{
-      const btn = $('#clockActionButton');
-      if (!activeUser || btn.disabled) return;
-      btn.disabled = true; const prev = btn.textContent; btn.textContent = 'กำลังบันทึก…';
+    // ===== Main =====
+    let activeUser = null; window.activeUser = null; window.__missingOutYesterday = false;
+    (async function main(){
       try {
-        const lastTypeToday = await getLastTypeToday(activeUser.id);
-        const chosen = suggestTypeForNow(lastTypeToday);
-        await recordAttendance(activeUser, chosen, 'Face');
-      } catch (e){ console.error(e); showToast('บันทึกล้มเหลว'); }
-      finally { btn.textContent = prev; setTimeout(()=> btn.disabled = false, 1500); }
-    });
+        await signInAnonymously(auth); setBadge(document.getElementById('clockStatus'),'พร้อมใช้งาน','green');
+      } catch (e) {
+        setBadge(document.getElementById('clockStatus'),'เข้าสู่ระบบไม่สำเร็จ','red'); console.error('Auth error:', e); showToast((String(e && (e.message||e.code))).includes('API key') ? 'API key ไม่ถูกต้อง/ไม่มีสิทธิ์' : 'ลงชื่อเข้าใช้ไม่สำเร็จ'); return; }
 
-    // ====== Boot ======
-    await startWebcam();
-    recognitionLoop();
-    updateClockUi();
+      await startWebcam();
+      try{
+        await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('./models');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('./models');
+        setBadge(document.getElementById('clockStatus'),'โมเดลพร้อมใช้งาน','green');
+      }catch(e){ setBadge(document.getElementById('clockStatus'),'โหลดโมเดลล้มเหลว','red'); console.error('Load models error', e); }
+
+      const employees = await loadEmployees(); window.__employees = employees;
+
+      function resolveUserByDescriptor(descriptor){
+        try{ if (window.faceMatcher && descriptor){ const result = window.faceMatcher.findBestMatch(descriptor); if (result && result.label && result.label !== 'unknown'){ const list = Array.isArray(window.registeredUsersData)?window.registeredUsersData:[]; let u = list.find(function(x){ return x.id===result.label || x.employeeId===result.label || x.name===result.label; }); if (!u) u = { id: result.label, name: result.label }; return u; } } }catch(e){ console.warn('resolveUserByDescriptor failed', e); }
+        if (Array.isArray(window.__employees) && window.__employees.length) return window.__employees[0]; return null;
+      }
+
+      async function refreshTodayList(employeeId){ const ul = document.getElementById('todayList'); if (!ul) return; const r = getBangkokDayRange(getBangkokNow()); const qy = query(collection(db, 'artifacts/' + appId + '/public/data/attendance'), where('employeeId','==',employeeId), orderBy('timestamp','desc'), limit(20)); const snap = await getDocs(qy); ul.innerHTML = ''; snap.forEach(function(d){ const row = d.data(); const t = (row.timestamp && row.timestamp.toDate) ? row.timestamp.toDate() : new Date(row.timestamp); const ms = (row.timestamp && row.timestamp.toMillis) ? row.timestamp.toMillis() : new Date(row.timestamp).getTime(); if (ms < r.startOfDay || ms > r.endOfDay) return; const li = document.createElement('li'); li.textContent = row.type + ' • ' + new Intl.DateTimeFormat('th-TH',{ hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Bangkok' }).format(t) + (row.note ? ' • ' + row.note : ''); ul.appendChild(li); }); }
+
+      async function updateClockUi(){ const status = document.getElementById('clockStatus'); const nameEl = document.getElementById('activeUserName'); const suggestEl = document.getElementById('suggestText'); const btn = document.getElementById('clockActionButton'); showClockBar(currentTab === 'clock'); document.getElementById('shiftWarning').style.display = isShiftOverlapNow() ? 'inline-flex' : 'none'; if (activeUser){ nameEl.textContent = activeUser.name + ' (' + activeUser.id + ')'; setBadge(status, 'พบผู้ใช้', 'green'); await warnIfYesterdayOpenIN(activeUser.id); const lastTypeToday = await getLastTypeToday(activeUser.id); const suggestion = suggestTypeForNow(lastTypeToday); suggestEl.textContent = suggestion === 'IN' ? 'เข้า' : 'ออก'; btn.textContent = 'ยืนยันลงเวลา: ' + (suggestion === 'IN' ? 'เข้า' : 'ออก'); btn.disabled = false; await refreshTodayList(activeUser.id); } else { nameEl.textContent = '—'; suggestEl.textContent = '—'; setBadge(status, 'กำลังหาผู้ใช้…', ''); btn.textContent = 'ยืนยันลงเวลา'; btn.disabled = true; } }
+
+      async function recognitionLoop(){ const video = document.getElementById('clockVideo'); const canvas = document.getElementById('clockCanvas'); if (!video || video.readyState < 2){ requestAnimationFrame(recognitionLoop); return; } const dims = faceapi.matchDimensions(canvas, { width: video.videoWidth, height: video.videoHeight }, true); let det = null; try{ det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 })).withFaceLandmarks().withFaceDescriptor(); }catch(e){ console.error('detect error', e); } const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); if (det){ const resized = faceapi.resizeResults(det, dims); faceapi.draw.drawDetections(canvas, resized); const user = resolveUserByDescriptor(det.descriptor); activeUser = user; window.activeUser = user; } else { activeUser = null; window.activeUser = null; } updateClockUi(); requestAnimationFrame(recognitionLoop); }
+
+      recognitionLoop();
+      updateClockUi();
+    })();
   </script>
 </body>
 </html>
