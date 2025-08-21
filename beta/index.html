@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Face Attendance — v5.6.1e (First working build + 7 fixes)</title>
+  <title>Face Attendance — v5.6.1f (First working build + 7 fixes)</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -36,7 +36,7 @@
 </head>
 <body>
   <header>
-    <h1>Face Attendance — v5.6.1e · First working build + 7 fixes</h1>
+    <h1>Face Attendance — v5.6.1f · First working build + 7 fixes</h1>
     <nav class="tabs">
       <button id="tabClock" class="tab active" data-tab="clock">ลงเวลา</button>
       <button id="tabRegister" class="tab" data-tab="register">ลงทะเบียน</button>
@@ -44,7 +44,7 @@
     </nav>
   </header>
 
-  <div class="version-badge">v5.6.1e</div>
+  <div class="version-badge">v5.6.1f</div>
 
   <main class="px-4 pb-6">
     <section id="clock" class="space-y-3">
@@ -94,7 +94,7 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    const APP_VERSION = '5.6.1e';
+    const APP_VERSION = '5.6.1f';
     (function enforceQueryVersion(){
       try{ const url = new URL(location.href); if (url.searchParams.get('v') !== APP_VERSION){ url.searchParams.set('v', APP_VERSION); location.replace(url.toString()); } }catch(err){}
     })();
