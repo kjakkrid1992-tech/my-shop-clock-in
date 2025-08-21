@@ -134,6 +134,55 @@
 
   <!-- Firebase + App -->
   <script type="module">
+    // ===== App Version & Cache-bust =====
+    const APP_VERSION = '5.6.1';
+    (function enforceQueryVersion(){
+      try{
+        const url = new URL(location.href);
+        if (url.searchParams.get('v') !== APP_VERSION){
+          url.searchParams.set('v', APP_VERSION);
+          // ใช้ replace เพื่อไม่ทิ้งประวัติย้อนกลับ
+          location.replace(url.toString());
+        }
+      }catch(err){ console.warn('Version param set failed', err); }
+    })();
+
+    // เพิ่มพารามิเตอร์ v ให้ไฟล์โมเดล face-api.js อัตโนมัติ เพื่อกันแคชเก่า
+    (function patchFetchForModels(){
+      const origFetch = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        let urlStr = (typeof input === 'string') ? input : (input && input.url);
+        let isModel = false;
+        try{
+          if (urlStr){
+            const u = new URL(urlStr, location.href);
+            if (u.pathname.includes('/models/')){ // เฉพาะไฟล์โมเดล
+              isModel = true;
+              if (!u.searchParams.has('v')) u.searchParams.set('v', APP_VERSION);
+              urlStr = u.toString();
+              input = (typeof input === 'string') ? urlStr : new Request(urlStr, input);
+            }
+          }
+        }catch(e){ /* ignore */ }
+
+        const res = await origFetch(input, init);
+        // Fallback: ถ้า 404 และเป็นไฟล์ใน /models/ และยังไม่มี .bin → ลองใหม่ด้วย .bin
+        if (isModel && res && res.status === 404 && typeof urlStr === 'string' && !/\.bin(\?|$)/.test(urlStr)){
+          try{
+            const u2 = new URL(urlStr, location.href);
+            // ถ้ามี -shardN ต่อท้าย ชื่อไฟล์ ให้เติม .bin
+            if (!u2.pathname.endsWith('.bin')){
+              u2.pathname = u2.pathname + '.bin';
+              const retryReq = (typeof input === 'string') ? u2.toString() : new Request(u2.toString(), input);
+              const res2 = await origFetch(retryReq, init);
+              if (res2 && res2.ok) return res2;
+            }
+          }catch(e){ /* ignore */ }
+        }
+        return res;
+      };
+    })();
+
     // ===== Firebase init =====
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
     import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
@@ -144,7 +193,7 @@
 
     // === เติมคอนฟิกของโปรเจกต์คุณ (จากที่คุณให้ไว้) ===
     const firebaseConfig = {
-      apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
+      apiKey: "AIzaSyAzcUm26W9PdhiPpj0ivemX91MF_iEdMg8",
       authDomain: "face-attendance-app-d439d.firebaseapp.com",
       projectId: "face-attendance-app-d439d",
       storageBucket: "face-attendance-app-d439d.firebasestorage.app",
@@ -432,4 +481,3 @@
   </script>
 </body>
 </html>
-
