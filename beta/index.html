@@ -294,6 +294,7 @@
     const loader = document.getElementById('loader');
     const registerFormContainer = document.getElementById('register-form-container');
     const video = document.getElementById('video');
+    const regCanvas = document.getElementById('reg-canvas');
     const statusMessage = document.getElementById('status-message');
     const thumbnailsContainer = document.getElementById('thumbnails-container');
     const employeeIdInput = document.getElementById('employee-id');
@@ -417,7 +418,7 @@
         if (Array.isArray(d.descriptor)) registeredUsersData.push({ id:d.id, name:d.name, descriptor:new Float32Array(d.descriptor) });
       });
       const labeled = registeredUsersData.map(u=> new faceapi.LabeledFaceDescriptors(u.id, [u.descriptor]));
-      faceMatcher = new faceapi.FaceMatcher(labeled, 0.6);
+      faceMatcher = labeled.length > 0 ? new faceapi.FaceMatcher(labeled, 0.6) : null;
     }
 
     async function fetchRegisteredUsers(){
@@ -455,6 +456,13 @@
         faceapi.matchDimensions(clockCanvas, displaySize);
         const resized = faceapi.resizeResults(detections, displaySize);
         clockCanvas.getContext('2d').clearRect(0,0,clockCanvas.width,clockCanvas.height);
+
+        // v5.7: if no registered users yet, skip matching
+        if (!faceMatcher){
+          clockStatus.textContent = 'ยังไม่มีพนักงานที่ลงทะเบียน';
+          clockActionButton.disabled = true;
+          return;
+        }
 
         if (detections && detections.length>0){
           const best = detections.map(d=> faceMatcher.findBestMatch(d.descriptor)).find(m=> m && m.label!=='unknown');
@@ -611,7 +619,7 @@
         .withFaceLandmarks().withFaceDescriptor();
       if (!detection){ statusMessage.textContent = 'ไม่พบใบหน้า ลองใหม่'; return; }
       const displaySize = { width: video.clientWidth, height: video.clientHeight };
-      faceapi.matchDimensions(reg-canvas, displaySize);
+      faceapi.matchDimensions(regCanvas, displaySize);
     });
 
     saveButton.addEventListener('click', async ()=>{
