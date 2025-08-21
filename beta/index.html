@@ -417,15 +417,13 @@
     // --- Webcam ---
     async function startWebcam(videoElement, callback){
       if (!videoElement || videoElement.srcObject) return;
+
+      // ขอสิทธิ์กล้องหน้าเป็นหลัก ถ้าไม่พบ/เงื่อนไขจำกัด จะ fallback ไปกล้องหลัง
+      const user = { video:{ facingMode:{ideal:'user'}, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false };
+      const back = { video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false };
+
       try{
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video:{
-            facingMode: { ideal: 'user' },
-            width: { ideal: 1280 }, height: { ideal: 720 },
-            frameRate: { ideal: 30 }
-          },
-          audio:false
-        });
+        const stream = await navigator.mediaDevices.getUserMedia(user);
         videoElement.srcObject = stream;
         videoElement.addEventListener('loadedmetadata', () => {
           if (videoElement.id === 'video'){
@@ -436,10 +434,31 @@
           if (callback) callback();
         }, { once:true });
       }catch(err){
-        console.error('Error accessing webcam:', err);
-        const msg = 'ไม่สามารถเข้าถึงกล้องได้ (อนุญาตการใช้กล้องและลองใหม่)';
-        if (videoElement.id === 'video') statusMessage.textContent = msg;
-        else showModal('ข้อผิดพลาด', msg, true);
+        // Fallback: ลองกล้องหลังเมื่อไม่พบอุปกรณ์/เงื่อนไขไม่ตรง
+        if (['OverconstrainedError','NotFoundError'].includes(err.name)){
+          try{
+            const stream = await navigator.mediaDevices.getUserMedia(back);
+            videoElement.srcObject = stream;
+            videoElement.addEventListener('loadedmetadata', () => {
+              resizeCanvases();
+              if (callback) callback();
+            }, { once:true });
+            return;
+          }catch(e2){ err = e2; }
+        }
+
+        // แจ้งคำแนะนำตามอาการ
+        let hint = '';
+        if (err.name === 'NotAllowedError' || err.name === 'SecurityError'){
+          hint = 'เบราว์เซอร์ยังไม่อนุญาตใช้กล้อง<br>วิธีแก้: แตะรูปกุญแจ > Site settings > Camera = Allow แล้วรีโหลด หรือเปิดลิงก์นี้ด้วย Chrome ตัวจริง (ไม่ใช่ในแอปอื่น).';
+        } else if (err.name === 'NotReadableError'){
+          hint = 'อาจมีแอปอื่นกำลังใช้กล้องอยู่ (เช่น LINE/กล้องระบบ) ให้ปิดแอปนั้นก่อนแล้วลองใหม่.';
+        } else if (err.name === 'OverconstrainedError' || err.name === 'NotFoundError'){
+          hint = 'ไม่พบกล้องตามที่ร้องขอ ลองสลับกล้องหน้าหลังหรือตรวจอุปกรณ์อีกครั้ง.';
+        } else {
+          hint = 'โปรดรีโหลดหน้า แล้วลองใหม่อีกครั้ง.';
+        }
+        showModal('ข้อผิดพลาด', `(${err.name}) ไม่สามารถเข้าถึงกล้องได้<br>${hint}`, true);
       }
     }
     function stopWebcam(videoElement){
