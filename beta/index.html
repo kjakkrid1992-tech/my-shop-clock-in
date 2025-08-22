@@ -25,21 +25,21 @@
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p class="text-gray-500 mt-2">เวอร์ชัน 5.6 – First working build</p>
+      <p class="text-gray-500 mt-2">เวอร์ชัน 5.7.1 – Auto-Confirm (Mobile)</p>
     </header>
 
     <!-- Tabs -->
     <div class="mb-6 border-b border-gray-200">
       <nav class="flex space-x-4" aria-label="Tabs">
-        <button id="tab-clock" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ลงเวลา</button>
-        <button id="tab-register" class="tab-button text-indigo-600 hover:text-indigo-700 px-3 py-2 font-medium text-sm rounded-t-md">ลงทะเบียน</button>
+        <button id="tab-clock" class="tab-button text-indigo-600 px-3 py-2 font-medium text-sm rounded-t-md border-b-2 border-indigo-500">ลงเวลา</button>
+        <button id="tab-register" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ลงทะเบียน</button>
         <button id="tab-history" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ประวัติ</button>
       </nav>
     </div>
 
     <main>
       <!-- Clock -->
-      <div id="content-clock" class="tab-content hidden p-4 md:p-6 bg-white rounded-lg shadow">
+      <div id="content-clock" class="tab-content p-4 md:p-6 bg-white rounded-lg shadow">
         <div id="clock-loader" class="text-center py-8">
           <p class="text-lg font-medium text-indigo-600">กำลังเตรียมระบบลงเวลา...</p>
         </div>
@@ -82,10 +82,10 @@
           </div>
         </div>
 
-        <!-- Mobile bottom bar (added in v5.7) -->
+        <!-- Mobile bottom bar -->
         <div id="clock-bottom-bar" class="fixed bottom-0 inset-x-0 md:hidden bg-white/90 backdrop-blur border-t border-gray-200 px-4 py-3 z-40">
           <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
-            <div class="text-sm font-medium text-gray-700"><span class="hidden xs:inline">สแกนอัตโนมัติ</span></div>
+            <div class="text-sm font-medium text-gray-700">สแกนอัตโนมัติ</div>
             <div class="flex items-center gap-2">
               <button id="pin-fallback-button-mobile" class="px-4 py-2 rounded-lg border text-sm font-semibold text-indigo-700 border-indigo-200 bg-indigo-50">ใช้รหัส PIN</button>
             </div>
@@ -94,7 +94,7 @@
       </div>
 
       <!-- Register -->
-      <div id="content-register" class="tab-content p-4 md:p-6 bg-white rounded-lg shadow">
+      <div id="content-register" class="tab-content hidden p-4 md:p-6 bg-white rounded-lg shadow">
         <div id="loader" class="text-center py-8">
           <p class="text-lg font-medium text-indigo-600">กำลังเตรียมระบบลงทะเบียน...</p>
         </div>
@@ -190,8 +190,7 @@
     </div>
   </div>
 
-  <!-- Confirm & Success overlays (added in v5.7) -->
-  <!-- Confirm Overlay -->
+  <!-- Confirm & Success overlays -->
   <div id="confirm-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
       <h3 class="text-xl font-bold text-gray-800 mb-2">ยืนยันตัวตน</h3>
@@ -203,7 +202,6 @@
     </div>
   </div>
 
-  <!-- Success Overlay -->
   <div id="success-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
       <div class="text-6xl mb-3">✔</div>
@@ -213,12 +211,11 @@
   </div>
 
   <script type="module">
-    // --- Firebase Imports ---
+    // Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, deleteDoc, collection, query, where, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-    // --- Firebase Config (UPDATED) ---
     const firebaseConfig = {
       apiKey: "AIzaSyAzcUm26W9PdhiPpj0ivemX91MF_iEdMg8",
       authDomain: "face-attendance-app-d439d.firebaseapp.com",
@@ -227,14 +224,15 @@
       messagingSenderId: "462584831921",
       appId: "1:462584831921:web:b1cbb6b7274533ce31e790"
     };
-
-    // --- App Context ---
     const appId = 'default';
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
 
-    // --- Global State & Elements ---
+    // Elements & state
+    const tabs = { clock: document.getElementById('tab-clock'), register: document.getElementById('tab-register'), history: document.getElementById('tab-history') };
+    const contents = { clock: document.getElementById('content-clock'), register: document.getElementById('content-register'), history: document.getElementById('content-history') };
+
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modal-title');
     const modalMessage = document.getElementById('modal-message');
@@ -245,35 +243,6 @@
     const confirmModalCancel = document.getElementById('confirm-modal-cancel');
     const confirmModalDelete = document.getElementById('confirm-modal-delete');
 
-    const tabs = { clock: document.getElementById('tab-clock'), register: document.getElementById('tab-register'), history: document.getElementById('tab-history') };
-    const contents = { clock: document.getElementById('content-clock'), register: document.getElementById('content-register'), history: document.getElementById('content-history') };
-
-    let currentTab = 'clock';
-    let faceMatcher = null;
-    let registeredUsersData = [];
-    let recognitionInterval = null;
-    const lastScanTimestamps = {};
-    const SCAN_COOLDOWN_SECONDS = 30;
-    let userToDeleteId = null;
-
-    // --- Auto-confirm state (added in v5.7) ---
-    let confirmMode = false;
-    let stableMatchSince = 0;
-    let lastMatchId = null;
-    let confirmCandidate = null;
-    const AUTO_HOLD_MS = 2000; // 2s stable hold
-
-    // Overlays & mobile bottom bar elements
-    const confirmOverlay = document.getElementById('confirm-overlay');
-    const confirmName = document.getElementById('confirm-name');
-    const confirmInBtn = document.getElementById('confirm-in');
-    const confirmOutBtn = document.getElementById('confirm-out');
-    const successOverlay = document.getElementById('success-overlay');
-    const successText = document.getElementById('success-text');
-    const pinFallbackButtonMobile = document.getElementById('pin-fallback-button-mobile');
-    if (pinFallbackButtonMobile) pinFallbackButtonMobile.addEventListener('click', ()=> pinFallbackButton.click());
-
-    // --- Clock Tab Elements ---
     const clockLoader = document.getElementById('clock-loader');
     const clockContainer = document.getElementById('clock-container');
     const clockVideo = document.getElementById('clock-video');
@@ -282,15 +251,16 @@
     const clockTime = document.getElementById('clock-time');
     const clockActionButton = document.getElementById('clock-action-button');
     const pinFallbackButton = document.getElementById('pin-fallback-button');
+    const pinFallbackButtonMobile = document.getElementById('pin-fallback-button-mobile');
+
     const pinContainer = document.getElementById('pin-container');
     const pinEmployeeIdInput = document.getElementById('pin-employeeId');
     const pinCodeInput = document.getElementById('pin-code');
     const pinSubmitButton = document.getElementById('pin-submit-button');
     const pinCancelButton = document.getElementById('pin-cancel-button');
-    const recentAttendanceList = document.getElementById('recent-attendance-list');
-    let activeUser = null;
 
-    // --- Register Tab Elements ---
+    const recentAttendanceList = document.getElementById('recent-attendance-list');
+
     const loader = document.getElementById('loader');
     const registerFormContainer = document.getElementById('register-form-container');
     const video = document.getElementById('video');
@@ -304,15 +274,36 @@
     const saveButton = document.getElementById('save-button');
     const userList = document.getElementById('user-list');
 
-    // --- History Elements ---
     const historyDateInput = document.getElementById('history-date');
     const historySearchInput = document.getElementById('history-search');
     const historyTableBody = document.getElementById('history-table-body');
     const historyNoData = document.getElementById('history-no-data');
     const exportCsvButton = document.getElementById('export-csv-button');
-    let fullHistoryData = [];
 
-    // --- UI helpers ---
+    let currentTab = 'clock';
+    let recognitionInterval = null;
+    let registeredUsersData = [];
+    let faceMatcher = null;
+    const lastScanTimestamps = {};
+    const SCAN_COOLDOWN_SECONDS = 30;
+
+    // Auto confirm state
+    let confirmMode = false;
+    let stableMatchSince = 0;
+    let lastMatchId = null;
+    let confirmCandidate = null;
+    const AUTO_HOLD_MS = 2000;
+
+    const confirmOverlay = document.getElementById('confirm-overlay');
+    const confirmName = document.getElementById('confirm-name');
+    const confirmInBtn = document.getElementById('confirm-in');
+    const confirmOutBtn = document.getElementById('confirm-out');
+    const successOverlay = document.getElementById('success-overlay');
+    const successText = document.getElementById('success-text');
+
+    if (pinFallbackButtonMobile) pinFallbackButtonMobile.addEventListener('click', ()=> pinFallbackButton.click());
+
+    // UI helpers
     function showModal(title, message, isError = false) {
       modalTitle.textContent = title;
       modalMessage.textContent = message;
@@ -326,28 +317,28 @@
     });
 
     function showConfirmModal(id, name) {
-      userToDeleteId = id;
       confirmModalMessage.textContent = `คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน: ${name} (ID: ${id})? การกระทำนี้ไม่สามารถย้อนกลับได้`;
       confirmModal.classList.remove('opacity-0','pointer-events-none');
       confirmModal.querySelector('.modal-content').classList.remove('scale-95');
+      confirmModal.dataset.targetId = id;
     }
     function hideConfirmModal() {
-      userToDeleteId = null;
       confirmModal.classList.add('opacity-0','pointer-events-none');
       confirmModal.querySelector('.modal-content').classList.add('scale-95');
+      delete confirmModal.dataset.targetId;
     }
     confirmModalCancel.addEventListener('click', hideConfirmModal);
     confirmModalDelete.addEventListener('click', async () => {
-      if (!userToDeleteId) return; 
+      const targetId = confirmModal.dataset.targetId;
+      if (!targetId) return;
       try{
-        await deleteDoc(doc(db, `artifacts/${appId}/public/data/employees`, userToDeleteId));
+        await deleteDoc(doc(db, `artifacts/${appId}/public/data/employees`, targetId));
         hideConfirmModal();
         await fetchRegisteredUsers();
         await loadRegisteredUsersForRecognition();
       }catch(err){ showModal('เกิดข้อผิดพลาด', 'ไม่สามารถลบผู้ใช้ได้', true); }
     });
 
-    // --- Helpers ---
     function updateClock(){
       const now = new Date();
       clockTime.textContent = now.toLocaleTimeString('th-TH', { hour12:false });
@@ -360,69 +351,39 @@
     pinFallbackButton.addEventListener('click', ()=> showPinForm(true));
     pinCancelButton.addEventListener('click', ()=> showPinForm(false));
 
-    async function loadModels(){
-      const candidates = [
-        './models',
-        'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights',
-        'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'
-      ];
+    // Model loader with fallbacks
+    async function trySource(MODEL_URL){
+      const ping = await fetch(`${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`, { cache:'reload' });
+      if (!ping.ok) throw new Error('manifest not found');
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    }
+    async function ensureModels(){
+      const candidates = ['./models','https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights','https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'];
       for (const src of candidates){
-        try{
-          await faceapi.nets.tinyFaceDetector.loadFromUri(src);
-          await faceapi.nets.ssdMobilenetv1.loadFromUri(src);
-          await faceapi.nets.faceLandmark68Net.loadFromUri(src);
-          await faceapi.nets.faceRecognitionNet.loadFromUri(src);
-          return true;
-        } catch(e){ console.warn('[models] source failed:', src, e); }
+        try{ await trySource(src); return true; }
+        catch(e){ console.warn('[models] source failed:', src, e); }
       }
-      const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณารีเฟรชหรือลองใหม่';
-      if (loader) loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
-      if (clockLoader) clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+      clockLoader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดโมเดล AI กรุณารีเฟรช</p>';
+      loader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดโมเดล AI กรุณารีเฟรช</p>';
       return false;
     }
 
-    // --- Webcam ---
+    // Webcam helpers
     async function startWebcam(videoElement, callback){
       if (!videoElement || videoElement.srcObject) return;
       try{
         const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
-        if (!isSecure){
-          showModal('ต้องเปิดผ่าน HTTPS', 'การใช้งานกล้องต้องเปิดผ่าน HTTPS หรือ localhost', true);
-          return;
-        }
+        if (!isSecure){ showModal('ต้องเปิดผ่าน HTTPS', 'การใช้งานกล้องต้องเปิดผ่าน HTTPS หรือ localhost', true); return; }
         const constraints = { video: { facingMode: 'user', width: {ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} } };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         videoElement.setAttribute('playsinline','true');
         videoElement.muted = true;
         videoElement.srcObject = stream;
-        videoElement.addEventListener('loadedmetadata', () => {
-          if (videoElement.id === 'video'){
-            captureButton.disabled = false;
-            statusMessage.textContent = 'กรุณาจัดใบหน้าให้อยู่ในกรอบ';
-          }
-          if (callback) callback();
-        }, { once:true });
-      }catch(err){
-        console.error('Error accessing webcam:', err);
-        const msg = 'ไม่สามารถเข้าถึงกล้องได้ (โปรดเช็คสิทธิ์การใช้งานกล้องในเบราว์เซอร์)';
-        if (videoElement.id === 'video') statusMessage.textContent = msg;
-        else showModal('ข้อผิดพลาด', msg, true);
-      }
-    } });
-        videoElement.srcObject = stream;
-        videoElement.addEventListener('loadedmetadata', () => {
-          if (videoElement.id === 'video'){
-            captureButton.disabled = false;
-            statusMessage.textContent = 'กรุณาจัดใบหน้าให้อยู่ในกรอบ';
-          }
-          if (callback) callback();
-        });
-      }catch(err){
-        console.error('Error accessing webcam:', err);
-        const msg = 'ไม่สามารถเข้าถึงกล้องได้';
-        if (videoElement.id === 'video') statusMessage.textContent = msg;
-        else showModal('ข้อผิดพลาด', msg, true);
-      }
+        videoElement.addEventListener('loadedmetadata', () => { if (callback) callback(); }, { once:true });
+      }catch(err){ console.error('Error accessing webcam:', err); showModal('ข้อผิดพลาด', 'ไม่สามารถเข้าถึงกล้องได้', true); }
     }
     function stopWebcam(videoElement){
       if (videoElement && videoElement.srcObject){
@@ -431,7 +392,16 @@
       }
     }
 
-    // --- Recognition ---
+    // Firestore helpers
+    function toJsDate(ts){
+      if (!ts) return null;
+      if (typeof ts.toDate === 'function') return ts.toDate();
+      if (typeof ts === 'number') return new Date(ts);
+      if (typeof ts === 'string') return new Date(ts);
+      if (typeof ts.seconds === 'number') return new Date(ts.seconds*1000 + Math.floor((ts.nanoseconds||0)/1e6));
+      return null;
+    }
+
     async function loadRegisteredUsersForRecognition(){
       const q = query(collection(db, `artifacts/${appId}/public/data/employees`));
       const querySnapshot = await getDocs(q);
@@ -441,17 +411,14 @@
         if (Array.isArray(d.descriptor)) registeredUsersData.push({ id:d.id, name:d.name, descriptor:new Float32Array(d.descriptor) });
       });
       const labeled = registeredUsersData.map(u=> new faceapi.LabeledFaceDescriptors(u.id, [u.descriptor]));
-      faceMatcher = labeled.length > 0 ? new faceapi.FaceMatcher(labeled, 0.6) : null;
+      faceMatcher = labeled.length>0 ? new faceapi.FaceMatcher(labeled, 0.6) : null;
     }
 
     async function fetchRegisteredUsers(){
       const q = query(collection(db, `artifacts/${appId}/public/data/employees`));
       onSnapshot(q, (snapshot)=>{
         const users = [];
-        snapshot.forEach(docSnap=>{
-          const d = docSnap.data();
-          users.push(d);
-        });
+        snapshot.forEach(docSnap=> users.push(docSnap.data()));
         userList.innerHTML = users.map(u=>
           `<div class="flex items-center justify-between p-2 bg-white rounded border">
             <div>
@@ -462,159 +429,6 @@
           </div>`).join('');
         userList.querySelectorAll('.delete-user').forEach(btn=> btn.addEventListener('click', ()=> showConfirmModal(btn.dataset.id, btn.dataset.name)) );
       });
-    }
-
-    function startRecognition(){
-      if (recognitionInterval || !faceMatcher) return;
-      clockLoader.classList.add('hidden');
-      clockContainer.classList.remove('hidden');
-
-      recognitionInterval = setInterval(async ()=>{
-        if (currentTab!=='clock' || !pinContainer.classList.contains('hidden') || confirmMode) return;
-        const detections = await faceapi
-          .detectAllFaces(clockVideo, new faceapi.SsdMobilenetv1Options())
-          .withFaceLandmarks().withFaceDescriptors();
-
-        const displaySize = { width: clockVideo.clientWidth, height: clockVideo.clientHeight };
-        faceapi.matchDimensions(clockCanvas, displaySize);
-        const resized = faceapi.resizeResults(detections, displaySize);
-        clockCanvas.getContext('2d').clearRect(0,0,clockCanvas.width,clockCanvas.height);
-
-        // v5.7: if no registered users yet, skip matching
-        if (!faceMatcher){
-          clockStatus.textContent = 'ยังไม่มีพนักงานที่ลงทะเบียน';
-          clockActionButton.disabled = true;
-          return;
-        }
-
-        if (detections && detections.length>0){
-          const best = detections.map(d=> faceMatcher.findBestMatch(d.descriptor)).find(m=> m && m.label!=='unknown');
-          if (best){
-            const matched = registeredUsersData.find(u=> u.id===best.label);
-            activeUser = matched ? { id: matched.id, name: matched.name } : null;
-            if (activeUser){
-              faceapi.draw.drawDetections(clockCanvas, resized);
-              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
-              clockStatus.classList.add('text-green-600');
-              clockActionButton.disabled = false;
-              clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
-
-              // v5.7: auto-confirm when same match is stable for AUTO_HOLD_MS
-              const __now = Date.now();
-              if (lastMatchId === activeUser.id){
-                if (!stableMatchSince) stableMatchSince = __now;
-                if (!confirmMode && (__now - stableMatchSince >= AUTO_HOLD_MS)){
-                  enterConfirmMode(activeUser);
-                }
-              } else {
-                lastMatchId = activeUser.id;
-                stableMatchSince = 0;
-              }
-            } else {
-              // v5.7: reset stability when not confidently matched
-              resetClockStatus();
-              lastMatchId = null;
-              stableMatchSince = 0;
-            }
-          } else resetClockStatus();
-        } else resetClockStatus();
-      }, 1000);
-    }
-    function stopRecognition(){ if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
-    function resetClockStatus(){
-      activeUser=null; clockStatus.textContent=''; clockStatus.classList.remove('text-green-600');
-      clockActionButton.disabled=true; clockActionButton.textContent='กรุณามองกล้องเพื่อสแกนใบหน้า';
-    }
-
-    // v5.7 confirm flow helpers
-    function enterConfirmMode(user){
-      confirmMode = true;
-      confirmCandidate = user;
-      confirmName.textContent = user && user.name ? `คุณ ${user.name}` : (user && user.id ? user.id : '-');
-      confirmOverlay.classList.remove('hidden');
-    }
-    function exitConfirmMode(){
-      confirmMode = false;
-      confirmCandidate = null;
-      stableMatchSince = 0;
-      lastMatchId = null;
-      confirmOverlay.classList.add('hidden');
-    }
-    function showSuccessOverlay(type){
-      successText.textContent = type==='IN' ? 'บันทึกเข้างานสำเร็จ' : 'บันทึกออกงานสำเร็จ';
-      successOverlay.classList.remove('hidden');
-      setTimeout(()=>{
-        successOverlay.classList.add('hidden');
-        exitConfirmMode();
-      }, 5000);
-    }
-    window.FORCED_ATTENDANCE_TYPE = null;
-    window.suppressSuccessModal = false;
-    function saveAttendanceWithType(type){
-      if (!confirmCandidate) return;
-      window.FORCED_ATTENDANCE_TYPE = type;
-      window.suppressSuccessModal = true;
-      recordAttendance(confirmCandidate, 'Face').finally(()=>{
-        // success overlay will show after recordAttendance success
-        window.suppressSuccessModal = false;
-      });
-    }
-    if (confirmInBtn) confirmInBtn.addEventListener('click', async ()=>{
-      saveAttendanceWithType('IN');
-    });
-    if (confirmOutBtn) confirmOutBtn.addEventListener('click', async ()=>{
-      saveAttendanceWithType('OUT');
-    });
-
-    clockActionButton.addEventListener('click', ()=>{ if (activeUser) recordAttendance(activeUser,'Face'); });
-
-    async function recordAttendance(user, method){
-      const now = new Date();
-      const lastScan = lastScanTimestamps[user.id];
-      if (lastScan && (now - lastScan)/1000 < SCAN_COOLDOWN_SECONDS){
-        showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true);
-        return;
-      }
-      try{
-        const todayStr = now.toISOString().split('T')[0];
-        const startOfDay = new Date(todayStr).getTime();
-        const endOfDay = startOfDay + 24*60*60*1000 - 1;
-
-        const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where('employeeId','==',user.id));
-        const querySnapshot = await getDocs(q);
-        let todays = 0;
-        querySnapshot.forEach(docSnap=>{
-          const ts = docSnap.data().timestamp;
-          const dt = toJsDate(ts);
-          const t = dt ? dt.getTime() : 0;
-          if (t>=startOfDay && t<=endOfDay) todays++;
-        });
-
-        const attendanceType = (window.FORCED_ATTENDANCE_TYPE && (window.FORCED_ATTENDANCE_TYPE==='IN' || window.FORCED_ATTENDANCE_TYPE==='OUT')) ? window.FORCED_ATTENDANCE_TYPE : (todays % 2 === 0 ? 'IN' : 'OUT');
-        window.FORCED_ATTENDANCE_TYPE = null;
-        const typeText = attendanceType==='IN' ? 'เข้างาน' : 'ออกงาน';
-
-        await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
-          employeeId: user.id, employeeName: user.name, timestamp: now, type: attendanceType, method
-        });
-
-        lastScanTimestamps[user.id] = now;
-        if (window.suppressSuccessModal){ showSuccessOverlay(attendanceType); } else { showModal('บันทึกสำเร็จ', `คุณ ${user.name} ได้บันทึกเวลา${typeText}เรียบร้อยแล้ว`); }
-        resetClockStatus();
-        await fetchRecentAttendance();
-      }catch(err){
-        console.error('Error recording attendance:', err);
-        showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
-      }
-    }
-
-    function toJsDate(ts){
-      if (!ts) return null;
-      if (typeof ts.toDate === 'function') return ts.toDate();
-      if (typeof ts === 'number') return new Date(ts);
-      if (typeof ts === 'string') return new Date(ts);
-      if (typeof ts.seconds === 'number') return new Date(ts.seconds*1000 + Math.floor((ts.nanoseconds||0)/1e6));
-      return null;
     }
 
     async function fetchRecentAttendance(){
@@ -640,9 +454,120 @@
         }).join('');
       }catch(err){ console.error('recent error', err); }
     }
+
+    function startRecognition(){
+      if (recognitionInterval) return;
+      clockLoader.classList.add('hidden');
+      clockContainer.classList.remove('hidden');
+
+      recognitionInterval = setInterval(async ()=>{
+        if (currentTab!=='clock' || !pinContainer.classList.contains('hidden') || confirmMode) return;
+        const detections = await faceapi
+          .detectAllFaces(clockVideo, new faceapi.SsdMobilenetv1Options())
+          .withFaceLandmarks().withFaceDescriptors();
+
+        const displaySize = { width: clockVideo.clientWidth, height: clockVideo.clientHeight };
+        faceapi.matchDimensions(clockCanvas, displaySize);
+        const resized = faceapi.resizeResults(detections, displaySize);
+        const ctx = clockCanvas.getContext('2d');
+        ctx.clearRect(0,0,clockCanvas.width,clockCanvas.height);
+
+        if (!faceMatcher){
+          clockStatus.textContent = 'ยังไม่มีพนักงานที่ลงทะเบียน';
+          clockActionButton.disabled = true;
+          return;
+        }
+
+        if (detections && detections.length>0){
+          const bestMatch = detections
+            .map(d=> faceMatcher.findBestMatch(d.descriptor))
+            .find(m=> m && m.label!=='unknown');
+          if (bestMatch){
+            const matched = registeredUsersData.find(u=> u.id===bestMatch.label);
+            if (matched){
+              faceapi.draw.drawDetections(clockCanvas, resized);
+              clockStatus.textContent = `ยินดีต้อนรับ, ${matched.name}`;
+              clockStatus.classList.add('text-green-600');
+              clockActionButton.disabled = false;
+              clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
+
+              const now = Date.now();
+              if (lastMatchId === matched.id){
+                if (!stableMatchSince) stableMatchSince = now;
+                if (!confirmMode && now - stableMatchSince >= AUTO_HOLD_MS){ enterConfirmMode({ id: matched.id, name: matched.name }); }
+              } else {
+                lastMatchId = matched.id;
+                stableMatchSince = 0;
+              }
+            }
+          } else { resetClockStatus(); }
+        } else { resetClockStatus(); }
+      }, 1000);
+    }
+    function stopRecognition(){ if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
+    function resetClockStatus(){
+      clockStatus.textContent=''; clockStatus.classList.remove('text-green-600');
+      clockActionButton.disabled=true; clockActionButton.textContent='กรุณามองกล้องเพื่อสแกนใบหน้า';
+      stableMatchSince = 0; lastMatchId = null;
     }
 
-    // --- Register flow ---
+    function enterConfirmMode(user){
+      confirmMode = true;
+      confirmCandidate = user;
+      confirmName.textContent = `คุณ ${user.name}`;
+      confirmOverlay.classList.remove('hidden');
+    }
+    function exitConfirmMode(){
+      confirmMode = false; confirmCandidate = null; stableMatchSince=0; lastMatchId=null;
+      confirmOverlay.classList.add('hidden');
+    }
+    function showSuccessOverlay(type){
+      successText.textContent = type==='IN' ? 'บันทึกเข้างานสำเร็จ' : 'บันทึกออกงานสำเร็จ';
+      successOverlay.classList.remove('hidden');
+      setTimeout(()=>{ successOverlay.classList.add('hidden'); exitConfirmMode(); }, 5000);
+    }
+
+    window.FORCED_ATTENDANCE_TYPE = null;
+    window.suppressSuccessModal = false;
+    function saveAttendanceWithType(type){
+      if (!confirmCandidate) return;
+      window.FORCED_ATTENDANCE_TYPE = type;
+      window.suppressSuccessModal = true;
+      recordAttendance(confirmCandidate, 'Face').finally(()=>{ window.suppressSuccessModal = false; });
+    }
+    confirmInBtn.addEventListener('click', ()=> saveAttendanceWithType('IN'));
+    confirmOutBtn.addEventListener('click', ()=> saveAttendanceWithType('OUT'));
+
+    clockActionButton.addEventListener('click', ()=>{ if (confirmCandidate){ return; } if (lastMatchId){ saveAttendanceWithType(); } });
+
+    async function recordAttendance(user, method){
+      const now = new Date();
+      const lastScan = lastScanTimestamps[user.id];
+      if (lastScan && (now - lastScan)/1000 < SCAN_COOLDOWN_SECONDS){ showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true); return; }
+      try{
+        const todayStr = now.toISOString().split('T')[0];
+        const startOfDay = new Date(todayStr).getTime();
+        const endOfDay = startOfDay + 24*60*60*1000 - 1;
+
+        const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where('employeeId','==',user.id));
+        const qs = await getDocs(q);
+        let todays = 0;
+        qs.forEach(ds=>{ const dt = toJsDate(ds.data().timestamp); const t = dt?dt.getTime():0; if (t>=startOfDay && t<=endOfDay) todays++; });
+
+        const chosen = (window.FORCED_ATTENDANCE_TYPE==='IN' || window.FORCED_ATTENDANCE_TYPE==='OUT') ? window.FORCED_ATTENDANCE_TYPE : (todays % 2 === 0 ? 'IN' : 'OUT');
+        window.FORCED_ATTENDANCE_TYPE = null;
+
+        await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
+          employeeId: user.id, employeeName: user.name, timestamp: now, type: chosen, method
+        });
+
+        lastScanTimestamps[user.id] = now;
+        if (window.suppressSuccessModal) showSuccessOverlay(chosen); else showModal('บันทึกสำเร็จ', `คุณ ${user.name} ได้บันทึกเวลา${chosen==='IN'?'เข้างาน':'ออกงาน'}เรียบร้อยแล้ว`);
+        await fetchRecentAttendance();
+      }catch(err){ console.error('record error', err); showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true); }
+    }
+
+    // Register flow
     const TOTAL_CAPTURES = 3;
     let capturedDescriptors = [];
 
@@ -653,27 +578,17 @@
         .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
         .withFaceLandmarks().withFaceDescriptor();
       if (!detection){ statusMessage.textContent = 'ไม่พบใบหน้า ลองใหม่'; return; }
-
-      // บันทึก descriptor
       capturedDescriptors.push(detection.descriptor);
 
-      // แสดง thumbnail
       const thumb = document.createElement('canvas');
-      const vW = video.videoWidth || video.clientWidth;
-      const vH = video.videoHeight || video.clientHeight;
-      const size = 120;
-      thumb.width = size; thumb.height = size * (vH / vW);
-      const tctx = thumb.getContext('2d');
-      tctx.drawImage(video, 0, 0, thumb.width, thumb.height);
-      thumb.className = 'rounded border';
+      const vW = video.videoWidth || video.clientWidth; const vH = video.videoHeight || video.clientHeight;
+      const w = 120; const h = Math.round(120 * (vH / vW));
+      thumb.width = w; thumb.height = h; const tctx = thumb.getContext('2d');
+      tctx.drawImage(video, 0, 0, w, h); thumb.className = 'rounded border';
       thumbnailsContainer.appendChild(thumb);
 
       statusMessage.textContent = `เก็บตัวอย่างใบหน้าแล้ว (${capturedDescriptors.length}/${TOTAL_CAPTURES})`;
-      if (capturedDescriptors.length >= TOTAL_CAPTURES){ statusMessage.textContent = 'ครบแล้ว กดบันทึกข้อมูล'; }
-    });
-      if (!detection){ statusMessage.textContent = 'ไม่พบใบหน้า ลองใหม่'; return; }
-      const displaySize = { width: video.clientWidth, height: video.clientHeight };
-      faceapi.matchDimensions(regCanvas, displaySize);
+      if (capturedDescriptors.length >= TOTAL_CAPTURES) statusMessage.textContent = 'ครบแล้ว กดบันทึกข้อมูล';
     });
 
     saveButton.addEventListener('click', async ()=>{
@@ -682,19 +597,16 @@
       const pin = employeePinInput.value.trim();
       if (!id || !name || !pin || capturedDescriptors.length < TOTAL_CAPTURES){ showModal('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลและถ่ายใบหน้าให้ครบ', true); return; }
       const avg = new Float32Array(capturedDescriptors[0].length);
-      capturedDescriptors.forEach(desc=> desc.forEach((v,i)=> avg[i]+=v));
-      for(let i=0;i<avg.length;i++) avg[i]/=capturedDescriptors.length;
+      capturedDescriptors.forEach(desc=> desc.forEach((v,i)=> avg[i]+=v)); for(let i=0;i<avg.length;i++) avg[i]/=capturedDescriptors.length;
       try{
         await setDoc(doc(db, `artifacts/${appId}/public/data/employees`, id), { id, name, pin, descriptor: Array.from(avg) });
         showModal('บันทึกสำเร็จ','ลงทะเบียนพนักงานเรียบร้อยแล้ว');
-        capturedDescriptors = [];
-        employeeIdInput.value=''; employeeNameInput.value=''; employeePinInput.value='';
-        thumbnailsContainer.innerHTML='';
+        capturedDescriptors = []; employeeIdInput.value=''; employeeNameInput.value=''; employeePinInput.value=''; thumbnailsContainer.innerHTML='';
         await loadRegisteredUsersForRecognition();
       }catch(err){ showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', true); }
     });
 
-    // --- History ---
+    // History
     function renderHistory(rows){
       const dateFilter = historyDateInput.value; const q = historySearchInput.value.toLowerCase();
       const rows2 = rows.filter(r=>{
@@ -703,16 +615,12 @@
         return dateMatch && searchMatch;
       });
 
-      historyTableBody.innerHTML=''; 
-      historyNoData.classList.toggle('hidden', rows2.length>0);
-      historyTableBody.classList.toggle('hidden', rows2.length===0);
+      historyTableBody.innerHTML=''; historyNoData.classList.toggle('hidden', rows2.length>0); historyTableBody.classList.toggle('hidden', rows2.length===0);
 
       rows2.forEach(d=>{
         d.records.sort((a,b)=>a-b);
-        const clockIn = d.records[0];
-        const clockOut = d.records.length>1 ? d.records[d.records.length-1] : null;
-        let hoursWorked = '-';
-        if (clockIn && clockOut) hoursWorked = ((clockOut - clockIn)/36e5).toFixed(2);
+        const clockIn = d.records[0]; const clockOut = d.records.length>1 ? d.records[d.records.length-1] : null;
+        let hoursWorked = '-'; if (clockIn && clockOut) hoursWorked = ((clockOut - clockIn)/36e5).toFixed(2);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -725,15 +633,12 @@
       });
     }
 
-    exportCsvButton.addEventListener('click', ()=>{
-      // Minimal: keep as-is or implement existing behavior elsewhere
-      showModal('Export CSV', 'ฟังก์ชันนี้พร้อมใช้งานตามเวอร์ชันเดิม');
-    });
+    exportCsvButton.addEventListener('click', ()=>{ showModal('Export CSV', 'ฟังก์ชันนี้พร้อมใช้งานตามเวอร์ชันเดิม'); });
 
-    historyDateInput.addEventListener('change', ()=> renderHistory(fullHistoryData));
-    historySearchInput.addEventListener('input', ()=> renderHistory(fullHistoryData));
+    historyDateInput.addEventListener('change', ()=> renderHistory([]));
+    historySearchInput.addEventListener('input', ()=> renderHistory([]));
 
-    // --- Tab switcher ---
+    // Tab switcher
     function switchTab(tabName){
       currentTab = tabName;
       Object.keys(tabs).forEach(key => {
@@ -743,71 +648,24 @@
         tabs[key].classList.toggle('text-gray-500', key!==tabName);
         contents[key].classList.toggle('hidden', key!==tabName);
       });
-
-      if (tabName==='clock'){
-        stopWebcam(video);
-        startWebcam(clockVideo, () => startRecognition());
-        showPinForm(false);
-      } else if (tabName==='register') {
-        stopWebcam(clockVideo); stopRecognition();
-        startWebcam(video);
-      } else {
-        stopWebcam(video); stopWebcam(clockVideo); stopRecognition();
-      }
+      if (tabName==='clock'){ stopWebcam(video); startWebcam(clockVideo, () => startRecognition()); showPinForm(false); }
+      else if (tabName==='register'){ stopWebcam(clockVideo); stopRecognition(); startWebcam(video, ()=>{ captureButton.disabled=false; statusMessage.textContent='กรุณาจัดใบหน้าให้อยู่ในกรอบ'; }); }
+      else { stopWebcam(video); stopWebcam(clockVideo); stopRecognition(); }
     }
     Object.keys(tabs).forEach(key => tabs[key].addEventListener('click', () => switchTab(key)));
 
-    // --- Face-API model loading (with fallbacks) ---
-    async function trySource(MODEL_URL){
-      if(!window.faceapi) throw new Error('face-api.js not loaded');
-      console.log('[models] probing:', MODEL_URL);
-
-      const ping = await fetch(`${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`, { cache:'reload' });
-      if (!ping.ok) throw new Error(`manifest 404 at ${MODEL_URL}`);
-
-      const sequence = [
-        ['tinyFaceDetector', () => faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)],
-        ['ssdMobilenetv1', () => faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)],
-        ['faceLandmark68Net', () => faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)],
-        ['faceRecognitionNet', () => faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)],
-      ];
-
-      for (const [name, loader] of sequence){
-        try { await loader(); console.log('[models] loaded:', name); }
-        catch{ throw new Error(`failed at ${name}`); }
-      }
-      return true;
-    }
-
-    async function ensureModels(){
-      const candidates = ['./models','https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights','https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'];
-      for (const src of candidates){
-        try{ await trySource(src); return true; }
-        catch(e){ console.warn('[models] source failed:', src, e); }
-      }
-      const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณารีเฟรชหรือลองใหม่';
-      if (loader) loader.innerHTML = '<p class="text-red-500">'+msg+'</p>';
-      if (clockLoader) clockLoader.innerHTML = '<p class="text-red-500">'+msg+'</p>';
-      return false;
-    }
-
-    // --- Main ---
+    // Main
     async function main(){
       try{
         await signInAnonymously(auth);
         const ok = await ensureModels();
-        if (ok){
-          await Promise.all([fetchRegisteredUsers(), loadRegisteredUsersForRecognition(), fetchRecentAttendance()]);
-          loader.classList.add('hidden');
-          registerFormContainer.classList.remove('hidden');
-          historyDateInput.value = new Date().toISOString().split('T')[0];
-          switchTab('clock');
-          setInterval(updateClock, 1000);
-        }
-      }catch(err){
-        console.error('Initialization failed:', err);
-        loader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการเริ่มต้นระบบ</p>';
-      }
+        if (!ok) return;
+        await Promise.all([fetchRegisteredUsers(), loadRegisteredUsersForRecognition(), fetchRecentAttendance()]);
+        loader.classList.add('hidden'); registerFormContainer.classList.remove('hidden');
+        historyDateInput.value = new Date().toISOString().split('T')[0];
+        switchTab('clock');
+        setInterval(updateClock, 1000);
+      }catch(err){ console.error('Initialization failed:', err); loader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการเริ่มต้นระบบ</p>'; }
     }
     main();
   </script>
