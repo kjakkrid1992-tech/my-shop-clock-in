@@ -518,7 +518,7 @@
     });
 
     let __writeBusy = false;
-    function recordAttendance(user, method){
+    async function recordAttendance(user, method){
       if (__writeBusy) { return; }
       __writeBusy = true;
       const now = new Date();
