@@ -584,7 +584,9 @@
         const querySnapshot = await getDocs(q);
         let todays = 0;
         querySnapshot.forEach(docSnap=>{
-          const t = docSnap.data().timestamp.toDate().getTime();
+          const ts = docSnap.data().timestamp;
+          const dt = toJsDate(ts);
+          const t = dt ? dt.getTime() : 0;
           if (t>=startOfDay && t<=endOfDay) todays++;
         });
 
@@ -606,6 +608,15 @@
       }
     }
 
+    function toJsDate(ts){
+      if (!ts) return null;
+      if (typeof ts.toDate === 'function') return ts.toDate();
+      if (typeof ts === 'number') return new Date(ts);
+      if (typeof ts === 'string') return new Date(ts);
+      if (typeof ts.seconds === 'number') return new Date(ts.seconds*1000 + Math.floor((ts.nanoseconds||0)/1e6));
+      return null;
+    }
+
     async function fetchRecentAttendance(){
       try{
         const q = query(collection(db, `artifacts/${appId}/public/data/attendance`));
@@ -613,12 +624,12 @@
         const items = [];
         querySnapshot.forEach(docSnap=>{
           const d = docSnap.data();
-          items.push(d);
+          const dt = toJsDate(d.timestamp);
+          if (dt) items.push({ ...d, _jsDate: dt });
         });
-        items.sort((a,b)=> b.timestamp.toDate()-a.timestamp.toDate());
+        items.sort((a,b)=> b._jsDate - a._jsDate);
         recentAttendanceList.innerHTML = items.slice(0,5).map(it=>{
-          const t = it.timestamp.toDate();
-          const dateStr = t.toLocaleString('th-TH', { hour12:false });
+          const dateStr = it._jsDate.toLocaleString('th-TH', { hour12:false });
           return `<div class="flex items-center justify-between p-2 bg-white rounded border">
             <div>
               <div class="font-medium">${it.employeeName} <span class="text-gray-500 text-xs">(${it.employeeId})</span></div>
@@ -628,6 +639,7 @@
           </div>`;
         }).join('');
       }catch(err){ console.error('recent error', err); }
+    }
     }
 
     // --- Register flow ---
@@ -640,6 +652,25 @@
       const detection = await faceapi
         .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
         .withFaceLandmarks().withFaceDescriptor();
+      if (!detection){ statusMessage.textContent = 'ไม่พบใบหน้า ลองใหม่'; return; }
+
+      // บันทึก descriptor
+      capturedDescriptors.push(detection.descriptor);
+
+      // แสดง thumbnail
+      const thumb = document.createElement('canvas');
+      const vW = video.videoWidth || video.clientWidth;
+      const vH = video.videoHeight || video.clientHeight;
+      const size = 120;
+      thumb.width = size; thumb.height = size * (vH / vW);
+      const tctx = thumb.getContext('2d');
+      tctx.drawImage(video, 0, 0, thumb.width, thumb.height);
+      thumb.className = 'rounded border';
+      thumbnailsContainer.appendChild(thumb);
+
+      statusMessage.textContent = `เก็บตัวอย่างใบหน้าแล้ว (${capturedDescriptors.length}/${TOTAL_CAPTURES})`;
+      if (capturedDescriptors.length >= TOTAL_CAPTURES){ statusMessage.textContent = 'ครบแล้ว กดบันทึกข้อมูล'; }
+    });
       if (!detection){ statusMessage.textContent = 'ไม่พบใบหน้า ลองใหม่'; return; }
       const displaySize = { width: video.clientWidth, height: video.clientHeight };
       faceapi.matchDimensions(regCanvas, displaySize);
