@@ -225,7 +225,7 @@
     import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-    const APP_VERSION = '5.7 — Mobile camera + Tiny + Auto-confirm';
+    const APP_VERSION = '5.7.1 — Auto-confirm fix (stable timers)';
     // --- Firebase Config (UPDATED) ---
     const firebaseConfig = {
       apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
@@ -448,7 +448,9 @@
     /* === v5.7 Auto-confirm Helpers === */
     let lastLabel = null;
     let stableCount = 0;
-    const STABLE_FRAMES = 3; // 3× ~800ms = ~2.4s of stable detection
+    let stableTimer = null;      // start when we first see a user
+    let autoConfirmFailsafeTimer = null; // ensures we don't get stuck
+    const STABLE_FRAMES = 2; // 3× ~800ms = ~2.4s of stable detection
 
     async function getTodaysCount(userId){
       const now = new Date();
@@ -497,6 +499,8 @@
         if (confirmBox) confirmBox.classList.add('hidden');
         if (actionBtn) actionBtn.classList.remove('hidden');
         lastLabel = null; stableCount = 0;
+        if (stableTimer) { clearTimeout(stableTimer); stableTimer = null; }
+        if (autoConfirmFailsafeTimer) { clearTimeout(autoConfirmFailsafeTimer); autoConfirmFailsafeTimer = null; }
         startRecognition();
       };
 
@@ -533,14 +537,27 @@ function startRecognition(){
               clockStatus.classList.add('text-green-600');
               clockActionButton.disabled = false;
               clockActionButton.textContent = 'กำลังยืนยันอัตโนมัติ...';
-              if (lastLabel === activeUser.id) { stableCount++; } else { lastLabel = activeUser.id; stableCount = 1; }
+              if (lastLabel === activeUser.id) {
+                stableCount++;
+              } else {
+                lastLabel = activeUser.id;
+                stableCount = 1;
+                if (stableTimer) clearTimeout(stableTimer);
+                // If the same user stays in frame ~1.2s, confirm
+                stableTimer = setTimeout(async ()=>{ await proposeConfirmation(activeUser); }, 1200);
+                // Failsafe: confirm after 5s even if counter jitters
+                if (!autoConfirmFailsafeTimer) {
+                  autoConfirmFailsafeTimer = setTimeout(async ()=>{ await proposeConfirmation(activeUser); }, 5000);
+                }
+              }
               if (stableCount >= STABLE_FRAMES) { await proposeConfirmation(activeUser); }
             } else resetClockStatus();
           } else resetClockStatus();
         } else resetClockStatus();
       }, 800);
     }
-    function stopRecognition(){ if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
+    function stopRecognition(){
+      try { if (stableTimer) { clearTimeout(stableTimer); stableTimer = null; } if (autoConfirmFailsafeTimer) { clearTimeout(autoConfirmFailsafeTimer); autoConfirmFailsafeTimer = null; } } catch(e){} if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
     function resetClockStatus(){
       activeUser=null; clockStatus.textContent=''; clockStatus.classList.remove('text-green-600');
       clockActionButton.disabled=true; clockActionButton.textContent='กรุณามองกล้องเพื่อสแกนใบหน้า';
