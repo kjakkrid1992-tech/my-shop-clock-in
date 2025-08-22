@@ -34,7 +34,7 @@
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.5 — Env override + offline queue</p>
+      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.6 — Robust model paths</p>
     </header>
 
     <!-- Tabs -->
@@ -370,41 +370,66 @@
     Object.keys(tabs).forEach(key => tabs[key].addEventListener('click', () => switchTab(key)));
 
     // --- Face-API model loading (with fallbacks) ---
-    async function trySource(MODEL_URL){
-      if(!window.faceapi) throw new Error('face-api.js not loaded');
-      console.log('[models] probing:', MODEL_URL);
+    
+async function trySource(MODEL_URL){
+  if(!window.faceapi) throw new Error('face-api.js not loaded');
+  console.log('[models] probing:', MODEL_URL);
+  // quick ping
+  const pingUrl = `${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`;
+  const ping = await fetch(pingUrl, { cache:'reload' });
+  if (!ping.ok) throw new Error(`manifest 404 at ${pingUrl}`);
 
-      const ping = await fetch(`${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`, { cache:'reload' });
-      if (!ping.ok) throw new Error(`manifest 404 at ${MODEL_URL}`);
+  const sequence = [
+    ['tinyFaceDetector', ()=>faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)],
+    ['faceLandmark68', ()=>faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)],
+    ['faceRecognition', ()=>faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)],
+    ['ssdMobilenetv1', ()=>faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)],
+  ];
+  for (const [name, loader] of sequence) {
+    await loader();
+    console.log(`[models] ok: ${name}`);
+  }
+}
 
-      const sequence = [
-        ['tinyFaceDetector', ()=>faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)],
-        ['faceLandmark68', ()=>faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)],
-        ['faceRecognition', ()=>faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)],
-        ['ssdMobilenetv1', ()=>faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)],
-      ];
-      for (const [name, loader] of sequence) {
-        await loader();
-        console.log(`[models] ok: ${name}`);
-      }
-    }
-    async function loadModels(){
-      const SOURCES = [
-        './models',
-        'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights',
-        'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js-models/weights'
-      ];
-      for (const src of SOURCES){
-        try { await trySource(src); console.log('[models] loaded from:', src); return true; }
-        catch(e){ console.warn('[models] source failed:', src, e); }
-      }
-      const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณารีเฟรชหรือลองใหม่';
-      if (loader) loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
-      if (clockLoader) clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
-      return false;
-    }
+// Heuristic to derive likely local model paths for GitHub Pages subpaths
+function candidateLocalModelPaths(){
+  const paths = new Set();
+  const loc = window.location;
+  const parts = loc.pathname.split('/').filter(Boolean); // e.g., ["my-shop-clock-in","beta"]
+  // current folder
+  paths.add('./models');
+  // parent folder
+  paths.add('../models');
+  // repo root (/<user>.github.io/<repo>/models)
+  if (parts.length >= 1) paths.add(`/${parts[0]}/models`);
+  // /<repo>/<subdir>/models
+  if (parts.length >= 2) paths.add(`/${parts[0]}/${parts[1]}/models`);
+  return Array.from(paths);
+}
 
-    // --- Webcam ---
+async function loadModels(){
+  const CDN1 = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+  const CDN2 = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights';
+  const LOCAL_CANDIDATES = candidateLocalModelPaths();
+  const SOURCES = [...LOCAL_CANDIDATES, CDN1, CDN2];
+
+  // fail-fast UI timeout (6s)
+  let timeoutId = setTimeout(()=>{
+    const msg = 'โหลดโมเดลช้า/ไม่พบไฟล์<br>ตรวจสอบโฟลเดอร์ <code>models</code> หรืออินเทอร์เน็ต';
+    if (loader) loader.innerHTML = `<p class="text-yellow-600">${msg}</p>`;
+  }, 6000);
+
+  for (const src of SOURCES){
+    try { await trySource(src); clearTimeout(timeoutId); console.log('[models] loaded from:', src); return true; }
+    catch(e){ console.warn('[models] source failed:', src, e); }
+  }
+  clearTimeout(timeoutId);
+  const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณารีเฟรชหรือลองใหม่ (ตรวจสอบโฟลเดอร์ models)';
+  if (loader) loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+  if (clockLoader) clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+  return false;
+}
+// --- Webcam ---
     async function startWebcam(videoElement, callback){
       if (!videoElement || videoElement.srcObject) return;
       try{
@@ -915,7 +940,7 @@ function recordAttendance(user, method, forcedType=null){
 
 <script>
   (function(){
-    var APP_VERSION = '5.7.5 — Env override + offline queue';
+    var APP_VERSION = '5.7.6 — Robust model paths';
     function setVer(){
       var p = document.getElementById('app-version') || document.querySelector('header p');
       if(p) p.textContent = 'เวอร์ชัน ' + APP_VERSION;
