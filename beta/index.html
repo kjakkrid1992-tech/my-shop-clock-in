@@ -500,7 +500,8 @@
                 haptic(50); beep(880, 80);
                 clockStatus.classList.add('text-green-600');
                 clockActionButton.disabled = false;
-                clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
+                clockActionButton.textContent = 'กดเพื่อยืนยัน';
+                openConfirm(activeUser);
               }
             }
           } else {
@@ -515,20 +516,10 @@
       activeUser=null; clockStatus.textContent=''; clockStatus.classList.remove('text-green-600');
       clockActionButton.disabled=true; clockActionButton.textContent='กรุณามองกล้องเพื่อสแกนใบหน้า';
     }
-    clockActionButton.addEventListener('click', async ()=>{
-      if (!activeUser || clockActionButton.getAttribute('aria-busy')==='true') return;
-      const oldLabel = clockActionButton.textContent;
-      clockActionButton.setAttribute('aria-busy','true');
-      clockActionButton.disabled = true;
-      clockActionButton.textContent = 'กำลังบันทึก...';
-      await recordAttendance(activeUser,'Face');
-      clockActionButton.removeAttribute('aria-busy');
-      clockActionButton.disabled = false;
-      clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
-    });
+    clockActionButton.addEventListener('click', ()=>{ if (activeUser) openConfirm(activeUser); });
 
     let __writeBusy = false;
-    async function recordAttendance(user, method){
+    async function recordAttendance(user, method, type){
       if (__writeBusy) { return; }
       __writeBusy = true;
       const now = new Date();
@@ -855,6 +846,74 @@ window.addEventListener('pointerdown', initAudioCtxOnce, { once:true });
         setTimeout(()=> t.classList.remove('show'), 1600);
       }catch(_){}
     }
+
+    // v5.7.4c: confirm modal controls
+    function openConfirm(user){
+      const modal = document.getElementById('confirm-modal');
+      if (!modal) return;
+      document.getElementById('confirm-title').textContent = 'ยืนยันการลงเวลา';
+      document.getElementById('confirm-desc').textContent = `สำหรับ ${user.name} (${user.id})`;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      // reset busy states
+      ['confirm-in','confirm-out','confirm-cancel'].forEach(id=>{
+        const b = document.getElementById(id);
+        if (b){ b.disabled = false; b.removeAttribute('aria-busy'); }
+      });
+    }
+    function closeConfirm(){
+      const modal = document.getElementById('confirm-modal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+    (function setupConfirm(){
+      const bIn  = document.getElementById('confirm-in');
+      const bOut = document.getElementById('confirm-out');
+      const bCan = document.getElementById('confirm-cancel');
+      if (bIn)  bIn.addEventListener('click', async ()=>{
+        bIn.disabled = true; bOut.disabled = true; bCan.disabled = true;
+        bIn.setAttribute('aria-busy','true'); const old=bIn.textContent; bIn.textContent='กำลังบันทึก...';
+        try{ await recordAttendance(activeUser,'Face','IN'); showToast('บันทึกเข้าเรียบร้อย'); }
+        finally { bIn.removeAttribute('aria-busy'); bIn.textContent=old; closeConfirm(); }
+      });
+      if (bOut) bOut.addEventListener('click', async ()=>{
+        bIn.disabled = true; bOut.disabled = true; bCan.disabled = true;
+        bOut.setAttribute('aria-busy','true'); const old=bOut.textContent; bOut.textContent='กำลังบันทึก...';
+        try{ await recordAttendance(activeUser,'Face','OUT'); showToast('บันทึกออกเรียบร้อย'); }
+        finally { bOut.removeAttribute('aria-busy'); bOut.textContent=old; closeConfirm(); }
+      });
+      if (bCan) bCan.addEventListener('click', closeConfirm);
+      // click backdrop
+      const modal = document.getElementById('confirm-modal');
+      if (modal) modal.addEventListener('click', (e)=>{ if (e.target === modal) closeConfirm(); });
+    })();
+
+    // v5.7.4c: simple tab system + default to 'ลงเวลา'
+    function setActiveTab(tab){
+      const tabs = ['clock','register','history'];
+      tabs.forEach(t => {
+        const btn = document.getElementById('tab-'+t);
+        const pane = document.getElementById('content-'+t);
+        if (!btn || !pane) return;
+        const isActive = (t === tab);
+        pane.classList.toggle('hidden', !isActive);
+        btn.classList.toggle('text-indigo-600', isActive);
+        btn.classList.toggle('border-b-2', isActive);
+        btn.classList.toggle('border-indigo-500', isActive);
+        btn.classList.toggle('text-gray-500', !isActive);
+      });
+    }
+    (function(){
+      const btnClock = document.getElementById('tab-clock');
+      const btnReg   = document.getElementById('tab-register');
+      const btnHist  = document.getElementById('tab-history');
+      if (btnClock) btnClock.addEventListener('click', ()=> setActiveTab('clock'));
+      if (btnReg)   btnReg.addEventListener('click',   ()=> setActiveTab('register'));
+      if (btnHist)  btnHist.addEventListener('click',  ()=> setActiveTab('history'));
+      // default tab
+      setActiveTab('clock');
+    })();
 </script>
 </body>
 </html>
