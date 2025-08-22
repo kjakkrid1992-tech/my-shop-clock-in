@@ -24,22 +24,17 @@
   
   /* === v5.7.4b additions === */
   #net-banner.hidden { display:none; }
-  .tile {
-    border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px;
-    display:flex; align-items:center; gap: 10px; background:#fff;
-  }
-  .tile .time { font-weight:700; font-size: 18px; min-width:72px; }
-  .tile .meta { line-height:1.2 }
+  .tile { border:1px solid #e5e7eb; border-radius:12px; padding:12px; display:flex; align-items:center; gap:10px; background:#fff; }
+  .tile .time { font-weight:700; font-size:18px; min-width:72px; }
   .badge-in { background:#dcfce7; color:#166534; font-weight:700; padding:2px 8px; border-radius:999px; font-size:12px; }
   .badge-out{ background:#fee2e2; color:#991b1b; font-weight:700; padding:2px 8px; border-radius:999px; font-size:12px; }
   @media (max-width: 640px) {
-    #clock-video, #video { width: 100%; max-width: 360px; height: auto; }
-    #clock-video-container, #video-container { max-width: 360px; margin: 0 auto; }
-    #loader, #clock-loader { padding-top: 12px; }
-    .recent-grid { display:grid; grid-template-columns: 1fr; gap:10px; }
+    #clock-video, #video { width:100%; max-width:360px; height:auto; }
+    #clock-video-container, #video-container { max-width:360px; margin:0 auto; }
+    .recent-grid { display:grid; grid-template-columns:1fr; gap:10px; }
   }
   @media (min-width: 641px) {
-    .recent-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
+    .recent-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
   }
 
   </style>
@@ -468,9 +463,9 @@
             activeUser = registeredUsersData.find(u=>u.id===bestMatch.label);
             if (activeUser){
               faceapi.draw.drawDetections(clockCanvas, resized);
-              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`; try { clockStatus.innerHTML += ` <span class="text-gray-400 text-xs">(พร้อมยืนยัน)</span>`; } catch(e){}
-              haptic(50); beep(880, 80);
-              clockStatus.classList.add('text-green-600');
+              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
+              haptic(50); beep(880,80);
+clockStatus.classList.add('text-green-600');
               clockActionButton.disabled = false;
               clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
             } else resetClockStatus();
@@ -487,9 +482,7 @@
 
     async let __writeBusy = false;
     function recordAttendance(user, method){
-      if (__writeBusy) { return; }
-      __writeBusy = true;
-      const now = new Date();
+      if(__writeBusy){return;} __writeBusy=true; const now = new Date();
       const lastScan = lastScanTimestamps[user.id];
       if (lastScan && (now - lastScan)/1000 < SCAN_COOLDOWN_SECONDS){
         showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true);
@@ -516,7 +509,7 @@
         });
 
         lastScanTimestamps[user.id] = now;
-        haptic(50); beep(1200, 90); showModal('บันทึกสำเร็จ', `คุณ ${user.name} ได้บันทึกเวลา${typeText}เรียบร้อยแล้ว`);
+        haptic(50); beep(1200,90); showModal('บันทึกสำเร็จ', `คุณ ${user.name} ได้บันทึกเวลา${typeText}เรียบร้อยแล้ว`);
         resetClockStatus();
         await fetchRecentAttendance();
       }catch(err){
@@ -764,43 +757,16 @@
   
     // === v5.7.4b helpers ===
     function getTodayTH(d = new Date()){
-      try {
-        const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit'});
-        return fmt.format(d);
-      } catch(e){
-        const t = new Date(d.getTime() + 7*60*60*1000);
-        const y=t.getUTCFullYear(), m=String(t.getUTCMonth()+1).padStart(2,'0'), da=String(t.getUTCDate()).padStart(2,'0');
-        return `${y}-${m}-${da}`;
-      }
+      try{ const fmt = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit'}); return fmt.format(d); }
+      catch(e){ const t = new Date(d.getTime()+7*60*60*1000); const y=t.getUTCFullYear(), m=String(t.getUTCMonth()+1).padStart(2,'0'), da=String(t.getUTCDate()).padStart(2,'0'); return `${y}-${m}-${da}`; }
     }
     let __audioCtx = null;
-    function initAudioCtxOnce(){
-      if (!__audioCtx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) __audioCtx = new AC();
-      }
-      if (__audioCtx && __audioCtx.state === 'suspended') { __audioCtx.resume().catch(()=>{}); }
-    }
-    function beep(freq=880, ms=80, vol=0.15){
-      try{
-        initAudioCtxOnce();
-        if (!__audioCtx) return;
-        const o = __audioCtx.createOscillator();
-        const g = __audioCtx.createGain();
-        o.type = 'sine'; o.frequency.setValueAtTime(freq, __audioCtx.currentTime);
-        g.gain.setValueAtTime(vol, __audioCtx.currentTime);
-        o.connect(g); g.connect(__audioCtx.destination);
-        o.start(); o.stop(__audioCtx.currentTime + ms/1000);
-      }catch(_){}
-    }
-    function haptic(ms=50){ try{ if (navigator.vibrate) navigator.vibrate(ms); }catch(_){}
+    function initAudioCtxOnce(){ if(!__audioCtx){ const AC=window.AudioContext||window.webkitAudioContext; if(AC) __audioCtx=new AC(); } if(__audioCtx && __audioCtx.state==='suspended'){ __audioCtx.resume().catch(()=>{});} }
+    function beep(freq=880, ms=80, vol=0.15){ try{ initAudioCtxOnce(); if(!__audioCtx) return; const o=__audioCtx.createOscillator(), g=__audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(freq,__audioCtx.currentTime); g.gain.setValueAtTime(vol,__audioCtx.currentTime); o.connect(g); g.connect(__audioCtx.destination); o.start(); o.stop(__audioCtx.currentTime+ms/1000);}catch(_){} }
+    function haptic(ms=50){ try{ if(navigator.vibrate) navigator.vibrate(ms);}catch(_){} }
     window.addEventListener('pointerdown', initAudioCtxOnce, { once:true });
-    const netBanner = document.getElementById('net-banner');
-    function refreshNetBanner(){
-      if (!netBanner) return;
-      if (navigator.onLine) netBanner.classList.add('hidden');
-      else netBanner.classList.remove('hidden');
-    }
+    const netBanner=document.getElementById('net-banner');
+    function refreshNetBanner(){ if(!netBanner) return; if(navigator.onLine) netBanner.classList.add('hidden'); else netBanner.classList.remove('hidden'); }
     window.addEventListener('online', refreshNetBanner);
     window.addEventListener('offline', refreshNetBanner);
     refreshNetBanner();
