@@ -225,7 +225,8 @@
     import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-    const APP_VERSION = '5.7.1 — Auto-confirm fix (stable timers)';
+    const APP_VERSION = '5.7.2 — Match threshold tuned';
+    const MATCH_DISTANCE_THRESHOLD = 0.62; // higher accepts more (0.6–0.65 common)
     // --- Firebase Config (UPDATED) ---
     const firebaseConfig = {
       apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
@@ -440,7 +441,7 @@
             labeled.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
           }
         });
-        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, 0.5) : null;
+        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, MATCH_DISTANCE_THRESHOLD) : null;
       }catch(err){ console.error('Error loading registered users:', err); }
     }
 
@@ -519,7 +520,7 @@ function startRecognition(){
       recognitionInterval = setInterval(async ()=>{
         if (currentTab!=='clock' || !pinContainer.classList.contains('hidden')) return;
         const detections = await faceapi
-          .detectAllFaces(clockVideo, new faceapi.TinyFaceDetectorOptions({ inputSize: 192, scoreThreshold: 0.5 }))
+          .detectAllFaces(clockVideo, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
           .withFaceLandmarks().withFaceDescriptors();
 
         const displaySize = { width: clockVideo.clientWidth, height: clockVideo.clientHeight };
@@ -533,7 +534,7 @@ function startRecognition(){
             activeUser = registeredUsersData.find(u=>u.id===bestMatch.label);
             if (activeUser){
               faceapi.draw.drawDetections(clockCanvas, resized);
-              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
+              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`; try { clockStatus.innerHTML += ` <span class="text-gray-400 text-xs">(match: ${bestMatch.distance.toFixed(2)})</span>`; } catch(e){}
               clockStatus.classList.add('text-green-600');
               clockActionButton.disabled = false;
               clockActionButton.textContent = 'กำลังยืนยันอัตโนมัติ...';
