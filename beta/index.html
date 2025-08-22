@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ระบบบันทึกเวลาด้วยใบหน้า<\/title>
-  <link rel="icon" href="data:,">
+  <title>ระบบบันทึกเวลาด้วยใบหน้า</title>
+  <link rel="icon" href="data:,"><!-- กัน 404 favicon -->
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -17,8 +17,7 @@
     .modal-content { transition: transform .3s ease; }
     #video-container, #clock-video-container { position:relative; width:100%; max-width:448px; margin:auto; background:#E5E7EB; border-radius:.5rem; overflow:hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,.06); }
     #video, #clock-video, #reg-canvas, #clock-canvas { position:absolute; top:0; left:0; width:100%; height:100%; }
-    #video { transform: scaleX(-1); }
-    #clock-video { transform: scaleX(-1); }
+    #video, #clock-video { transform: scaleX(-1); }
     #reg-canvas, #clock-canvas { pointer-events:none; }
   </style>
 </head>
@@ -26,7 +25,8 @@
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p class="text-gray-500 mt-2">เวอร์ชัน 5.7.1 – Auto-Confirm (Mobile)</p>
+      <p class="text-gray-500 mt-2">เวอร์ชัน 5.7.2 – Auto-Confirm (Mobile, Safe-Fallback)</p>
+      <div id="env-banner" class="hidden mt-2 text-sm"></div>
     </header>
 
     <!-- Tabs -->
@@ -168,7 +168,7 @@
     </main>
   </div>
 
-  <!-- Modal (info) -->
+  <!-- Modal -->
   <div id="modal" class="modal-overlay fixed inset-0 bg-black/50 opacity-0 pointer-events-none flex items-center justify-center p-4">
     <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6">
       <h3 id="modal-title" class="text-lg font-medium text-gray-900">ข้อความ</h3>
@@ -212,12 +212,22 @@
   </div>
 
   <script type="module">
-    // Firebase
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    // ---- Firebase (Safe-Fallback) ----
+    import { initializeApp, deleteApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, doc, setDoc, deleteDoc, collection, query, where, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-    const firebaseConfig = {
+    // โปรเจกต์หลัก (ของเดิมคุณ)
+    const PROD = {
+      apiKey: "AIzaSyAzcUm26W9PdhiPpj0ivemX91MF_iEdMg8",
+      authDomain: "face-attendance-app-d439d.firebaseapp.com",
+      projectId: "face-attendance-app-d439d",
+      storageBucket: "face-attendance-app-d439d.firebasestorage.app",
+      messagingSenderId: "462584831921",
+      appId: "1:462584831921:web:b1cbb6b7274533ce31e790"
+    };
+    // โปรเจกต์สำรอง (กันไว้ใช้ทันทีถ้ากุญแจหลักติดข้อจำกัด)
+    const BETA = {
       apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
       authDomain: "face-attendance-app-7231d.firebaseapp.com",
       projectId: "face-attendance-app-7231d",
@@ -225,12 +235,42 @@
       messagingSenderId: "374495265979",
       appId: "1:374495265979:web:edd70449d0b378eeec959e"
     };
-    const appId = 'beta';
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
 
-    // Elements & state
+    // เลือกได้ด้วย hash: #prod หรือ #beta (ถ้าไม่ใส่จะลอง PROD ก่อน แล้วค่อย fallback)
+    const forceEnv = (location.hash || '').replace('#','').toLowerCase();
+    const envBanner = document.getElementById('env-banner');
+
+    let app, db, auth;
+    const appId = 'beta'; // path เก็บข้อมูลใน Firestore ตามเดิมของหน้า /beta/
+
+    async function initFirebase(cfg, label){
+      if (getApps().length) try { await deleteApp(getApps()[0]); } catch(e){}
+      app = initializeApp(cfg, `app-${Date.now()}`);
+      db = getFirestore(app);
+      auth = getAuth(app);
+      try{
+        await signInAnonymously(auth);
+        envBanner.className = `mt-2 text-xs px-2 py-1 inline-block rounded ${label==='PROD' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`;
+        envBanner.textContent = label==='PROD' ? 'โหมดหลัก (PROD)' : 'โหมดสำรอง (BETA) – ระบบทำงานต่อได้';
+        envBanner.classList.remove('hidden');
+        return true;
+      }catch(err){
+        console.warn('signInAnonymously failed on', label, err?.code || err);
+        return false;
+      }
+    }
+
+    async function bootAuth(){
+      if (forceEnv==='prod'){ if (await initFirebase(PROD,'PROD')) return; }
+      else if (forceEnv==='beta'){ if (await initFirebase(BETA,'BETA')) return; }
+      else {
+        if (await initFirebase(PROD,'PROD')) return;
+      }
+      // ถึงจุดนี้ PROD ใช้ไม่ได้ → ลอง BETA ทันที
+      await initFirebase(BETA,'BETA');
+    }
+
+    // ---- Elements & state ----
     const tabs = { clock: document.getElementById('tab-clock'), register: document.getElementById('tab-register'), history: document.getElementById('tab-history') };
     const contents = { clock: document.getElementById('content-clock'), register: document.getElementById('content-register'), history: document.getElementById('content-history') };
 
@@ -304,7 +344,7 @@
 
     if (pinFallbackButtonMobile) pinFallbackButtonMobile.addEventListener('click', ()=> pinFallbackButton.click());
 
-    // UI helpers
+    // ---- Helpers / UI ----
     function showModal(title, message, isError = false) {
       modalTitle.textContent = title;
       modalMessage.textContent = message;
@@ -349,10 +389,10 @@
       pinContainer.classList.toggle('hidden', !show);
       clockContainer.classList.toggle('hidden', show);
     }
-    pinFallbackButton.addEventListener('click', ()=> showPinForm(true));
+    document.getElementById('pin-fallback-button').addEventListener('click', ()=> showPinForm(true));
     pinCancelButton.addEventListener('click', ()=> showPinForm(false));
 
-    // Model loader with fallbacks
+    // ---- Models ----
     async function trySource(MODEL_URL){
       const ping = await fetch(`${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`, { cache:'reload' });
       if (!ping.ok) throw new Error('manifest not found');
@@ -372,7 +412,7 @@
       return false;
     }
 
-    // Webcam helpers
+    // ---- Webcam ----
     async function startWebcam(videoElement, callback){
       if (!videoElement || videoElement.srcObject) return;
       try{
@@ -393,7 +433,7 @@
       }
     }
 
-    // Firestore helpers
+    // ---- Firestore helpers ----
     function toJsDate(ts){
       if (!ts) return null;
       if (typeof ts.toDate === 'function') return ts.toDate();
@@ -456,6 +496,7 @@
       }catch(err){ console.error('recent error', err); }
     }
 
+    // ---- Recognition loop ----
     function startRecognition(){
       if (recognitionInterval) return;
       clockLoader.classList.add('hidden');
@@ -538,7 +579,6 @@
     }
     confirmInBtn.addEventListener('click', ()=> saveAttendanceWithType('IN'));
     confirmOutBtn.addEventListener('click', ()=> saveAttendanceWithType('OUT'));
-
     clockActionButton.addEventListener('click', ()=>{ if (confirmCandidate){ return; } if (lastMatchId){ saveAttendanceWithType(); } });
 
     async function recordAttendance(user, method){
@@ -568,11 +608,11 @@
       }catch(err){ console.error('record error', err); showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true); }
     }
 
-    // Register flow
+    // ---- Register ----
     const TOTAL_CAPTURES = 3;
     let capturedDescriptors = [];
 
-    captureButton.addEventListener('click', async ()=>{
+    document.getElementById('capture-button').addEventListener('click', async ()=>{
       if (capturedDescriptors.length >= TOTAL_CAPTURES) return;
       statusMessage.textContent = 'กำลังประมวลผล...';
       const detection = await faceapi
@@ -592,7 +632,7 @@
       if (capturedDescriptors.length >= TOTAL_CAPTURES) statusMessage.textContent = 'ครบแล้ว กดบันทึกข้อมูล';
     });
 
-    saveButton.addEventListener('click', async ()=>{
+    document.getElementById('save-button').addEventListener('click', async ()=>{
       const id = employeeIdInput.value.trim();
       const name = employeeNameInput.value.trim();
       const pin = employeePinInput.value.trim();
@@ -607,7 +647,7 @@
       }catch(err){ showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', true); }
     });
 
-    // History
+    // ---- History (render stub เดิม) ----
     function renderHistory(rows){
       const dateFilter = historyDateInput.value; const q = historySearchInput.value.toLowerCase();
       const rows2 = rows.filter(r=>{
@@ -615,14 +655,11 @@
         const searchMatch = !q || r.employeeName.toLowerCase().includes(q) || r.employeeId.toLowerCase().includes(q);
         return dateMatch && searchMatch;
       });
-
       historyTableBody.innerHTML=''; historyNoData.classList.toggle('hidden', rows2.length>0); historyTableBody.classList.toggle('hidden', rows2.length===0);
-
       rows2.forEach(d=>{
         d.records.sort((a,b)=>a-b);
         const clockIn = d.records[0]; const clockOut = d.records.length>1 ? d.records[d.records.length-1] : null;
         let hoursWorked = '-'; if (clockIn && clockOut) hoursWorked = ((clockOut - clockIn)/36e5).toFixed(2);
-
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td class="px-4 py-2">${d.employeeName} <span class="text-xs text-gray-500">(${d.employeeId})</span></td>
@@ -633,13 +670,11 @@
         historyTableBody.appendChild(tr);
       });
     }
-
-    exportCsvButton.addEventListener('click', ()=>{ showModal('Export CSV', 'ฟังก์ชันนี้พร้อมใช้งานตามเวอร์ชันเดิม'); });
-
+    document.getElementById('export-csv-button').addEventListener('click', ()=>{ showModal('Export CSV', 'ฟังก์ชันนี้พร้อมใช้งานตามเวอร์ชันเดิม'); });
     historyDateInput.addEventListener('change', ()=> renderHistory([]));
     historySearchInput.addEventListener('input', ()=> renderHistory([]));
 
-    // Tab switcher
+    // ---- Tabs ----
     function switchTab(tabName){
       currentTab = tabName;
       Object.keys(tabs).forEach(key => {
@@ -650,23 +685,26 @@
         contents[key].classList.toggle('hidden', key!==tabName);
       });
       if (tabName==='clock'){ stopWebcam(video); startWebcam(clockVideo, () => startRecognition()); showPinForm(false); }
-      else if (tabName==='register'){ stopWebcam(clockVideo); stopRecognition(); startWebcam(video, ()=>{ captureButton.disabled=false; statusMessage.textContent='กรุณาจัดใบหน้าให้อยู่ในกรอบ'; }); }
+      else if (tabName==='register'){ stopWebcam(clockVideo); stopRecognition(); startWebcam(video, ()=>{ document.getElementById('capture-button').disabled=false; statusMessage.textContent='กรุณาจัดใบหน้าให้อยู่ในกรอบ'; }); }
       else { stopWebcam(video); stopWebcam(clockVideo); stopRecognition(); }
     }
     Object.keys(tabs).forEach(key => tabs[key].addEventListener('click', () => switchTab(key)));
 
-    // Main
+    // ---- Main ----
     async function main(){
       try{
-        await signInAnonymously(auth);
+        await bootAuth();                    // << Safe-Fallback
         const ok = await ensureModels();
         if (!ok) return;
         await Promise.all([fetchRegisteredUsers(), loadRegisteredUsersForRecognition(), fetchRecentAttendance()]);
         loader.classList.add('hidden'); registerFormContainer.classList.remove('hidden');
         historyDateInput.value = new Date().toISOString().split('T')[0];
-        switchTab('clock');
+        switchTab('clock');                  // เริ่มที่หน้าลงเวลา
         setInterval(updateClock, 1000);
-      }catch(err){ console.error('Initialization failed:', err); loader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการเริ่มต้นระบบ</p>'; }
+      }catch(err){
+        console.error('Initialization failed:', err);
+        loader.innerHTML = '<p class="text-red-500">เกิดข้อผิดพลาดในการเริ่มต้นระบบ</p>';
+      }
     }
     main();
   </script>
