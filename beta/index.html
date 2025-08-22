@@ -42,23 +42,13 @@
     .recent-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
   }
 
-  
-  /* === v5.7.4c additions === */
-  [aria-busy="true"] { position: relative; pointer-events: none; opacity: .85; }
-  [aria-busy="true"]::after {
-    content: ""; position: absolute; right: 12px; top: 50%; width: 14px; height: 14px;
-    border: 2px solid rgba(0,0,0,.2); border-top-color: rgba(0,0,0,.6);
-    border-radius: 50%; transform: translateY(-50%); animation: spin .8s linear infinite;
-  }
-  @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
-
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p class="text-gray-500 mt-2">เวอร์ชัน 5.7.4c — Tighter match + clear done (from 5.7.4b)</p>
+      <p class="text-gray-500 mt-2">เวอร์ชัน 5.6 – First working build</p>
     </header>
     <div id="net-banner" class="hidden text-center py-2 text-xs font-semibold bg-yellow-50 text-yellow-700 border-b border-yellow-200">
       ออฟไลน์ — ระบบจะซิงก์เมื่อกลับมาออนไลน์
@@ -251,10 +241,6 @@
     // ใช้ให้ตรงกับ path ใน Firestore: artifacts/{appId}/public/data/...
     const appId = 'face-attendance-app';
 
-    // Matching sensitivity (lower = stricter), configurable via localStorage 'match_distance'
-    const MATCH_DISTANCE = Number(localStorage.getItem('match_distance')) || 0.45;
-    const REQUIRED_STABLE_FRAMES = 2;
-
     // --- Firebase Init ---
     const app = initializeApp(firebaseConfig);
     const db  = getFirestore(app);
@@ -297,7 +283,7 @@
     const pinSubmitButton = document.getElementById('pin-submit-button');
     const pinCancelButton = document.getElementById('pin-cancel-button');
     const recentAttendanceList = document.getElementById('recent-attendance-list');
-    let activeUser = null; let stableFrames = 0;
+    let activeUser = null;
 
     // --- Register Tab Elements ---
     const loader = document.getElementById('loader');
@@ -456,7 +442,7 @@
             labeled.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
           }
         });
-        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, MATCH_DISTANCE) : null;
+        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, 0.45) : null;
       }catch(err){ console.error('Error loading registered users:', err); }
     }
 
@@ -478,26 +464,18 @@
 
         if (detections.length > 0){
           const bestMatch = faceMatcher.findBestMatch(detections[0].descriptor);
-          const ok = (bestMatch.label !== 'unknown') && (typeof bestMatch.distance === 'number') && (bestMatch.distance <= MATCH_DISTANCE);
-          if (ok){
-            stableFrames++;
-            // draw box only when we have a face
-            faceapi.draw.drawDetections(clockCanvas, resized);
-            if (stableFrames === REQUIRED_STABLE_FRAMES){
-              activeUser = registeredUsersData.find(u=>u.id===bestMatch.label) || null;
-              if (activeUser){
-                clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`; try { clockStatus.innerHTML += ` <span class="text-gray-400 text-xs">(พร้อมยืนยัน)</span>`; } catch(e){}
-                haptic(50); beep(880, 80);
-                clockStatus.classList.add('text-green-600');
-                clockActionButton.disabled = false;
-                clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
-              }
-            }
-          } else {
-            stableFrames = 0;
-            resetClockStatus();
-          }
-        } else { stableFrames = 0; resetClockStatus(); }
+          if (bestMatch.label !== 'unknown'){
+            activeUser = registeredUsersData.find(u=>u.id===bestMatch.label);
+            if (activeUser){
+              faceapi.draw.drawDetections(clockCanvas, resized);
+              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`; try { clockStatus.innerHTML += ` <span class="text-gray-400 text-xs">(พร้อมยืนยัน)</span>`; } catch(e){}
+              haptic(50); beep(880, 80);
+              clockStatus.classList.add('text-green-600');
+              clockActionButton.disabled = false;
+              clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
+            } else resetClockStatus();
+          } else resetClockStatus();
+        } else resetClockStatus();
       }, 1000);
     }
     function stopRecognition(){ if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
@@ -505,17 +483,7 @@
       activeUser=null; clockStatus.textContent=''; clockStatus.classList.remove('text-green-600');
       clockActionButton.disabled=true; clockActionButton.textContent='กรุณามองกล้องเพื่อสแกนใบหน้า';
     }
-    clockActionButton.addEventListener('click', async ()=>{
-      if (!activeUser || clockActionButton.getAttribute('aria-busy')==='true') return;
-      const oldLabel = clockActionButton.textContent;
-      clockActionButton.setAttribute('aria-busy','true');
-      clockActionButton.disabled = true;
-      clockActionButton.textContent = 'กำลังบันทึก...';
-      await recordAttendance(activeUser,'Face');
-      clockActionButton.removeAttribute('aria-busy');
-      clockActionButton.disabled = false;
-      clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
-    });
+    clockActionButton.addEventListener('click', async ()=>{ if (!activeUser) return; const old=clockActionButton.textContent; clockActionButton.disabled=true; clockActionButton.textContent='กำลังบันทึก...'; try { await recordAttendance(activeUser,'Face'); } finally { clockActionButton.disabled=false; clockActionButton.textContent=old; } });
 
     let __writeBusy = false;
     async function recordAttendance(user, method){
