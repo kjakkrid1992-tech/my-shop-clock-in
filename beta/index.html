@@ -34,7 +34,7 @@
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.4 — Fix JS & model base</p>
+      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.5 — Env override + offline queue</p>
     </header>
 
     <!-- Tabs -->
@@ -233,7 +233,7 @@
     const APP_VERSION = '5.7.3 — Instant confirm + safe query';
     const MATCH_DISTANCE_THRESHOLD = 0.62; // higher accepts more (0.6–0.65 common)
     // --- Firebase Config (UPDATED) ---
-    const firebaseConfig = {
+    const firebaseConfig = (window.__ENV__ && window.__ENV__.FIREBASE) ? window.__ENV__.FIREBASE : {
       apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
       authDomain: "face-attendance-app-7231d.firebaseapp.com",
       projectId: "face-attendance-app-7231d",
@@ -598,7 +598,35 @@ function startRecognition(){
     }
     clockActionButton.addEventListener('click', ()=>{ if (activeUser) recordAttendance(activeUser,'Face'); });
 
-    async function recordAttendance(user, method, forcedType=null){
+    async 
+    /* === v5.7.5 Offline queue for writes === */
+    function enqueuePending(rec){
+      try{
+        const key = 'pending_attendance';
+        const arr = JSON.parse(localStorage.getItem(key) || '[]');
+        arr.push(rec);
+        localStorage.setItem(key, JSON.stringify(arr));
+      }catch(_){}
+    }
+    async function flushPending(){
+      const key = 'pending_attendance';
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch(_){ arr=[]; }
+      if (!Array.isArray(arr) || arr.length === 0) return 0;
+      let ok = 0, left=[];
+      for (const rec of arr){
+        try{
+          await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), rec);
+          ok++;
+        }catch(e){
+          console.warn('flushPending failed for one record:', e);
+          left.push(rec);
+        }
+      }
+      try{ localStorage.setItem(key, JSON.stringify(left)); }catch(_){}
+      return ok;
+    }
+function recordAttendance(user, method, forcedType=null){
       const now = new Date();
       const lastScan = lastScanTimestamps[user.id];
       if (lastScan && (now - lastScan)/1000 < SCAN_COOLDOWN_SECONDS){
@@ -625,9 +653,16 @@ function startRecognition(){
         const attendanceType = forcedType ?? (todays % 2 === 0 ? 'IN' : 'OUT');
         const typeText = attendanceType==='IN' ? 'เข้างาน' : 'ออกงาน';
 
-        await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
+        const rec = {
           employeeId: user.id, employeeName: user.name, timestamp: now, type: attendanceType, method
-        });
+        };
+        try{
+          await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), rec);
+        }catch(writeErr){
+          console.warn('primary write failed, enqueue locally:', writeErr);
+          enqueuePending(rec);
+          throw writeErr;
+        }
 
         lastScanTimestamps[user.id] = now;
         showModal('บันทึกสำเร็จ', `คุณ ${user.name} ได้บันทึกเวลา${typeText}เรียบร้อยแล้ว`);
@@ -635,7 +670,7 @@ function startRecognition(){
         await fetchRecentAttendance();
       }catch(err){
         console.error('Error recording attendance:', err);
-        showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
+        showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้: ' + (err.code || err.message), true);
       }
     }
 
@@ -859,6 +894,7 @@ function startRecognition(){
     async function main(){
       try{
         await signInAnonymously(auth);
+        try { const flushed = await flushPending(); if (flushed>0) console.log('Flushed pending records:', flushed); } catch(_e){}
         const modelsLoaded = await loadModels();
         if (modelsLoaded){
           await Promise.all([fetchRegisteredUsers(), loadRegisteredUsersForRecognition(), fetchRecentAttendance()]);
@@ -879,7 +915,7 @@ function startRecognition(){
 
 <script>
   (function(){
-    var APP_VERSION = '5.7.4 — Fix JS & model base';
+    var APP_VERSION = '5.7.5 — Env override + offline queue';
     function setVer(){
       var p = document.getElementById('app-version') || document.querySelector('header p');
       if(p) p.textContent = 'เวอร์ชัน ' + APP_VERSION;
