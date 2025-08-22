@@ -28,13 +28,31 @@
     /* Make canvases overlay videos */
     #clock-canvas, #canvas { position:absolute; top:0; left:0; }
 
+  
+  /* === v5.7.4a: Mobile portrait UX tweaks === */
+  :root { --safe: env(safe-area-inset-bottom); }
+  @media (max-width: 640px) {
+    .touch-card { padding: 12px; border-radius: 14px; }
+    .btn-lg { padding: 14px 16px; font-size: 1.125rem; border-radius: 0.75rem; }
+    #clock-status { font-size: 1rem; line-height: 1.5; }
+    #clock-confirm {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: #ffffff; border-top-left-radius: 16px; border-top-right-radius: 16px;
+      box-shadow: 0 -8px 24px rgba(0,0,0,.15);
+      padding: 16px calc(16px + env(safe-area-inset-right)) calc(16px + var(--safe)) calc(16px + env(safe-area-inset-left));
+      margin: 0;
+    }
+    #clock-action-button { position: sticky; bottom: calc(16px + var(--safe)); width: 100%; }
+    .confirm-actions { display: flex; flex-direction: column; gap: 8px; }
+  }
+
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.4 — Fix JS & model base</p>
+      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.4a — Server time + mobile UX</p>
     </header>
 
     <!-- Tabs -->
@@ -70,7 +88,7 @@
                 <img id="clock-snapshot" alt="snapshot" class="w-24 h-24 object-cover rounded-md border" />
                 <div class="flex-1">
                   <p id="clock-suggest-text" class="font-semibold text-gray-800">ยืนยันการบันทึกเวลา?</p>
-                  <div class="mt-3 flex flex-wrap gap-2">
+                  <div class="mt-3 confirm-actions sm:flex sm:flex-row sm:flex-wrap gap-2">
                     <button id="confirm-in" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-white bg-green-600 hover:bg-green-700">ยืนยันเข้า</button>
                     <button id="confirm-out" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700">ยืนยันออก</button>
                     <button id="confirm-cancel" class="inline-flex items-center justify-center px-4 py-2 rounded-md bg-white border hover:bg-gray-50 text-gray-700">สแกนใหม่</button>
@@ -227,7 +245,7 @@
 <script type="module">
     // --- Firebase Imports ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit , serverTimestamp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
     const APP_VERSION = '5.7.3 — Instant confirm + safe query';
@@ -879,7 +897,7 @@ function startRecognition(){
 
 <script>
   (function(){
-    var APP_VERSION = '5.7.4 — Fix JS & model base';
+    var APP_VERSION = '5.7.4a — Server time + mobile UX';
     function setVer(){
       var p = document.getElementById('app-version') || document.querySelector('header p');
       if(p) p.textContent = 'เวอร์ชัน ' + APP_VERSION;
@@ -887,6 +905,12 @@ function startRecognition(){
     if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', setVer); }
     else { setVer(); }
   })();
+
+    // v5.7.4a: enhance mobile button sizes
+    document.addEventListener('DOMContentLoaded', () => {
+      const bigs = ['clock-action-button','confirm-in','confirm-out','confirm-cancel'];
+      bigs.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('btn-lg'); });
+    });
 </script>
 
 </body>
