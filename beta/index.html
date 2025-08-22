@@ -34,7 +34,7 @@
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.7 — Force face-api + CDN-first</p>
+      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.4 — Fix JS & model base</p>
     </header>
 
     <!-- Tabs -->
@@ -233,7 +233,7 @@
     const APP_VERSION = '5.7.3 — Instant confirm + safe query';
     const MATCH_DISTANCE_THRESHOLD = 0.62; // higher accepts more (0.6–0.65 common)
     // --- Firebase Config (UPDATED) ---
-    const firebaseConfig = (window.__ENV__ && window.__ENV__.FIREBASE) ? window.__ENV__.FIREBASE : {
+    const firebaseConfig = {
       apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
       authDomain: "face-attendance-app-7231d.firebaseapp.com",
       projectId: "face-attendance-app-7231d",
@@ -370,90 +370,41 @@
     Object.keys(tabs).forEach(key => tabs[key].addEventListener('click', () => switchTab(key)));
 
     // --- Face-API model loading (with fallbacks) ---
-    
-async function trySource(MODEL_URL){
-  if(!window.faceapi) throw new Error('face-api.js not loaded');
-  console.log('[models] probing:', MODEL_URL);
-  // quick ping
-  const pingUrl = `${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`;
-  const ping = await fetch(pingUrl, { cache:'reload' });
-  if (!ping.ok) throw new Error(`manifest 404 at ${pingUrl}`);
+    async function trySource(MODEL_URL){
+      if(!window.faceapi) throw new Error('face-api.js not loaded');
+      console.log('[models] probing:', MODEL_URL);
 
-  const sequence = [
-    ['tinyFaceDetector', ()=>faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)],
-    ['faceLandmark68', ()=>faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)],
-    ['faceRecognition', ()=>faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)],
-    ['ssdMobilenetv1', ()=>faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)],
-  ];
-  for (const [name, loader] of sequence) {
-    await loader();
-    console.log(`[models] ok: ${name}`);
-  }
-}
+      const ping = await fetch(`${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`, { cache:'reload' });
+      if (!ping.ok) throw new Error(`manifest 404 at ${MODEL_URL}`);
 
-// Heuristic to derive likely local model paths for GitHub Pages subpaths
-function candidateLocalModelPaths(){
-  const paths = new Set();
-  const loc = window.location;
-  const parts = loc.pathname.split('/').filter(Boolean); // e.g., ["my-shop-clock-in","beta"]
-  // current folder
-  paths.add('./models');
-  // parent folder
-  paths.add('../models');
-  // repo root (/<user>.github.io/<repo>/models)
-  if (parts.length >= 1) paths.add(`/${parts[0]}/models`);
-  // /<repo>/<subdir>/models
-  if (parts.length >= 2) paths.add(`/${parts[0]}/${parts[1]}/models`);
-  return Array.from(paths);
-}
+      const sequence = [
+        ['tinyFaceDetector', ()=>faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)],
+        ['faceLandmark68', ()=>faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)],
+        ['faceRecognition', ()=>faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)],
+        ['ssdMobilenetv1', ()=>faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)],
+      ];
+      for (const [name, loader] of sequence) {
+        await loader();
+        console.log(`[models] ok: ${name}`);
+      }
+    }
+    async function loadModels(){
+      const SOURCES = [
+        './models',
+        'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights',
+        'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js-models/weights'
+      ];
+      for (const src of SOURCES){
+        try { await trySource(src); console.log('[models] loaded from:', src); return true; }
+        catch(e){ console.warn('[models] source failed:', src, e); }
+      }
+      const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณารีเฟรชหรือลองใหม่';
+      if (loader) loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+      if (clockLoader) clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
+      return false;
+    }
 
-async function loadModels(){
-  if (loader) loader.innerHTML = '<p class="text-indigo-600">กำลังโหลดโมเดล AI (เตรียมไลบรารี)...</p>'; 
-  const okFa = await ensureFaceApiReady();
-  if (!okFa){ if (loader) loader.innerHTML = '<p class="text-red-500">โหลด face-api.js ไม่สำเร็จ</p>'; return false; }
-  if (loader) loader.innerHTML = '<p class="text-indigo-600">กำลังโหลดโมเดล AI (กำลังดึงไฟล์)...</p>';
-  const CDN1 = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
-  const CDN2 = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights';
-  const LOCAL_CANDIDATES = candidateLocalModelPaths();
-  const SOURCES = [CDN1, CDN2, ...LOCAL_CANDIDATES];
-
-  // fail-fast UI timeout (6s)
-  let timeoutId = setTimeout(()=>{
-    const msg = 'โหลดโมเดลช้า/ไม่พบไฟล์<br>ตรวจสอบโฟลเดอร์ <code>models</code> หรืออินเทอร์เน็ต';
-    if (loader) loader.innerHTML = `<p class="text-yellow-600">${msg}</p>`;
-  }, 6000);
-
-  for (const src of SOURCES){
-    try { await trySource(src); clearTimeout(timeoutId); console.log('[models] loaded from:', src); return true; }
-    catch(e){ console.warn('[models] source failed:', src, e); }
-  }
-  clearTimeout(timeoutId);
-  const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณารีเฟรชหรือลองใหม่ (ตรวจสอบโฟลเดอร์ models)';
-  if (loader) loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
-  if (clockLoader) clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
-  return false;
-}
-
-async function ensureFaceApiReady(){
-  if (window.faceapi) return true;
-  // try injecting from CDN
-  const cdn = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
-  try{
-    const s = document.createElement('script');
-    s.src = cdn; s.defer = true;
-    document.head.appendChild(s);
-    const ok = await new Promise((resolve)=>{
-      let waited = 0, iv = setInterval(()=>{
-        waited += 100;
-        if (window.faceapi){ clearInterval(iv); resolve(true); }
-        if (waited >= 6000){ clearInterval(iv); resolve(false); }
-      }, 100);
-    });
-    if (ok) return true;
-  }catch(e){ console.warn('inject face-api failed', e); }
-  return !!window.faceapi;
-}
-// --- Webcam ---
+    // --- Webcam ---
     async function startWebcam(videoElement, callback){
       if (!videoElement || videoElement.srcObject) return;
       try{
@@ -647,35 +598,7 @@ function startRecognition(){
     }
     clockActionButton.addEventListener('click', ()=>{ if (activeUser) recordAttendance(activeUser,'Face'); });
 
-    async 
-    /* === v5.7.5 Offline queue for writes === */
-    function enqueuePending(rec){
-      try{
-        const key = 'pending_attendance';
-        const arr = JSON.parse(localStorage.getItem(key) || '[]');
-        arr.push(rec);
-        localStorage.setItem(key, JSON.stringify(arr));
-      }catch(_){}
-    }
-    async function flushPending(){
-      const key = 'pending_attendance';
-      let arr = [];
-      try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch(_){ arr=[]; }
-      if (!Array.isArray(arr) || arr.length === 0) return 0;
-      let ok = 0, left=[];
-      for (const rec of arr){
-        try{
-          await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), rec);
-          ok++;
-        }catch(e){
-          console.warn('flushPending failed for one record:', e);
-          left.push(rec);
-        }
-      }
-      try{ localStorage.setItem(key, JSON.stringify(left)); }catch(_){}
-      return ok;
-    }
-function recordAttendance(user, method, forcedType=null){
+    async function recordAttendance(user, method, forcedType=null){
       const now = new Date();
       const lastScan = lastScanTimestamps[user.id];
       if (lastScan && (now - lastScan)/1000 < SCAN_COOLDOWN_SECONDS){
@@ -702,16 +625,9 @@ function recordAttendance(user, method, forcedType=null){
         const attendanceType = forcedType ?? (todays % 2 === 0 ? 'IN' : 'OUT');
         const typeText = attendanceType==='IN' ? 'เข้างาน' : 'ออกงาน';
 
-        const rec = {
+        await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
           employeeId: user.id, employeeName: user.name, timestamp: now, type: attendanceType, method
-        };
-        try{
-          await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), rec);
-        }catch(writeErr){
-          console.warn('primary write failed, enqueue locally:', writeErr);
-          enqueuePending(rec);
-          throw writeErr;
-        }
+        });
 
         lastScanTimestamps[user.id] = now;
         showModal('บันทึกสำเร็จ', `คุณ ${user.name} ได้บันทึกเวลา${typeText}เรียบร้อยแล้ว`);
@@ -719,7 +635,7 @@ function recordAttendance(user, method, forcedType=null){
         await fetchRecentAttendance();
       }catch(err){
         console.error('Error recording attendance:', err);
-        showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้: ' + (err.code || err.message), true);
+        showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
       }
     }
 
@@ -943,7 +859,6 @@ function recordAttendance(user, method, forcedType=null){
     async function main(){
       try{
         await signInAnonymously(auth);
-        try { const flushed = await flushPending(); if (flushed>0) console.log('Flushed pending records:', flushed); } catch(_e){}
         const modelsLoaded = await loadModels();
         if (modelsLoaded){
           await Promise.all([fetchRegisteredUsers(), loadRegisteredUsersForRecognition(), fetchRecentAttendance()]);
@@ -964,7 +879,7 @@ function recordAttendance(user, method, forcedType=null){
 
 <script>
   (function(){
-    var APP_VERSION = '5.7.7 — Force face-api + CDN-first';
+    var APP_VERSION = '5.7.4 — Fix JS & model base';
     function setVer(){
       var p = document.getElementById('app-version') || document.querySelector('header p');
       if(p) p.textContent = 'เวอร์ชัน ' + APP_VERSION;
