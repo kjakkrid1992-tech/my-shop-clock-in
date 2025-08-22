@@ -34,7 +34,7 @@
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.3 — Instant confirm + safe query</p>
+      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.4 — Fix JS & model base</p>
     </header>
 
     <!-- Tabs -->
@@ -219,7 +219,12 @@
     </div>
   </div>
 
-  <script type="module">
+  
+  <script>
+    // v5.7.4: base path for face-api.js models (works on GitHub Pages subpaths)
+    window.MODEL_URL = window.MODEL_URL || './models';
+  </script>
+<script type="module">
     // --- Firebase Imports ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -474,7 +479,7 @@
         // If no results (or wrong type), try ISO string range (works if timestamp stored as ISO text)
         const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
         const ny = nextDay.getFullYear(), nm = String(nextDay.getMonth()+1).padStart(2,'0'), nd = String(nextDay.getDate()).padStart(2,'0');
-        const nextStr = "{ny}-{nm}-{nd}"  # we will fix this sloppy python string formatting below
+        const nextStr = `${ny}-${nm}-${nd}`;
 
         q1 = query(collection(db, `artifacts/${appId}/public/data/attendance`),
           where('employeeId','==', userId),
@@ -874,7 +879,7 @@ function startRecognition(){
 
 <script>
   (function(){
-    var APP_VERSION = '5.7.3 — Instant confirm + safe query';
+    var APP_VERSION = '5.7.4 — Fix JS & model base';
     function setVer(){
       var p = document.getElementById('app-version') || document.querySelector('header p');
       if(p) p.textContent = 'เวอร์ชัน ' + APP_VERSION;
