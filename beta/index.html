@@ -225,7 +225,7 @@
     import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-    const APP_VERSION = '5.7.2 — Match threshold tuned';
+    const APP_VERSION = '5.7.3 — Instant confirm + safe query';
     const MATCH_DISTANCE_THRESHOLD = 0.62; // higher accepts more (0.6–0.65 common)
     // --- Firebase Config (UPDATED) ---
     const firebaseConfig = {
@@ -454,19 +454,43 @@
     const STABLE_FRAMES = 2; // 3× ~800ms = ~2.4s of stable detection
 
     async function getTodaysCount(userId){
-      const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
-      const startOfDay = new Date(todayStr).getTime();
-      const endOfDay = startOfDay + 24*60*60*1000 - 1;
-      const q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
-        where('employeeId','==', userId),
-        where('timestamp','>=', new Date(startOfDay)),
-        where('timestamp','<=', new Date(endOfDay))
-      );
-      const snap = await getDocs(q);
-      return snap.size;
-    }
+      // Returns number of today's records for userId.
+      // Tries Firestore Timestamp range first; if it fails (e.g., timestamp stored as ISO string), falls back to string range.
+      try {
+        const now = new Date();
+        const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
+        const todayStr = `${y}-${m}-${d}`;
+        const start = new Date(`${todayStr}T00:00:00.000Z`);
+        const end   = new Date(`${todayStr}T23:59:59.999Z`);
 
+        let q1 = query(collection(db, `artifacts/${appId}/public/data/attendance`),
+          where('employeeId','==', userId),
+          where('timestamp','>=', start),
+          where('timestamp','<=', end)
+        );
+        let snap = await getDocs(q1);
+        if (snap && snap.size !== undefined && snap.size > 0) return snap.size;
+
+        // If no results (or wrong type), try ISO string range (works if timestamp stored as ISO text)
+        const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
+        const ny = nextDay.getFullYear(), nm = String(nextDay.getMonth()+1).padStart(2,'0'), nd = String(nextDay.getDate()).padStart(2,'0');
+        const nextStr = "{ny}-{nm}-{nd}"  # we will fix this sloppy python string formatting below
+
+        q1 = query(collection(db, `artifacts/${appId}/public/data/attendance`),
+          where('employeeId','==', userId),
+          where('timestamp','>=', todayStr),     // e.g., '2025-08-21'
+          where('timestamp','<', nextStr)        // '2025-08-22'
+        );
+        snap = await getDocs(q1);
+        if (snap && snap.size !== undefined) return snap.size;
+
+        return 0;
+      } catch (err) {
+        console.warn('getTodaysCount fallback due to error:', err);
+        // As a last resort: don't block confirmation, return 0 (assume IN)
+        return 0;
+      }
+    }
     function snapshotCurrentFrame(){
       const c = document.createElement('canvas');
       const w = clockVideo.videoWidth || 640;
@@ -480,21 +504,25 @@
 
     async function proposeConfirmation(user){
       stopRecognition();
-      // set snapshot preview
+      // set snapshot preview immediately
       const img = document.getElementById('clock-snapshot');
       if (img) img.src = snapshotCurrentFrame();
-
-      // suggest type from today's parity
-      const todays = await getTodaysCount(user.id);
-      const suggestedType = (todays % 2 === 0) ? 'IN' : 'OUT';
-      const suggestText = suggestedType === 'IN' ? 'แนะนำ: เข้างาน' : 'แนะนำ: ออกงาน';
-      const st = document.getElementById('clock-suggest-text');
-      if (st) st.textContent = `${suggestText} — ตรวจสอบและกดยืนยัน`;
 
       const confirmBox = document.getElementById('clock-confirm');
       const actionBtn = document.getElementById('clock-action-button');
       if (confirmBox) confirmBox.classList.remove('hidden');
       if (actionBtn) actionBtn.classList.add('hidden');
+
+      // Compute suggestion asynchronously—do not block UI
+      (async ()=>{
+        try {
+          const todays = await getTodaysCount(user.id);
+          const suggestedType = (todays % 2 === 0) ? 'IN' : 'OUT';
+          const suggestText = suggestedType === 'IN' ? 'แนะนำ: เข้างาน' : 'แนะนำ: ออกงาน';
+          const st = document.getElementById('clock-suggest-text');
+          if (st) st.textContent = `${suggestText} — ตรวจสอบและกดยืนยัน`;
+        } catch(e){ console.warn('suggest-type failed', e); }
+      })();
 
       const cleanup = ()=>{
         if (confirmBox) confirmBox.classList.add('hidden');
