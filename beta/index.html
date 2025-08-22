@@ -22,31 +22,6 @@
     #video, #clock-video { width:100%; height:auto; }
     #clock-canvas { position:absolute; top:0; left:0; }
   
-    /* === v5.7 additions === */
-    /* Mirror front cameras for natural UX */
-    #clock-video, #video { transform: scaleX(-1); }
-    /* Make canvases overlay videos */
-    #clock-canvas, #canvas { position:absolute; top:0; left:0; }
-
-  
-  /* === v5.7.4a: Mobile portrait UX tweaks === */
-  :root { --safe: env(safe-area-inset-bottom); }
-  @media (max-width: 640px) {
-    .touch-card { padding: 12px; border-radius: 14px; }
-    .btn-lg { padding: 14px 16px; font-size: 1.125rem; border-radius: 0.75rem; }
-    #clock-status { font-size: 1rem; line-height: 1.5; }
-    #clock-confirm {
-      position: fixed; left: 0; right: 0; bottom: 0;
-      background: #ffffff; border-top-left-radius: 16px; border-top-right-radius: 16px;
-      box-shadow: 0 -8px 24px rgba(0,0,0,.15);
-      padding: 16px calc(16px + env(safe-area-inset-right)) calc(16px + var(--safe)) calc(16px + env(safe-area-inset-left));
-      margin: 0;
-    }
-    #clock-action-button { position: sticky; bottom: calc(16px + var(--safe)); width: 100%; }
-    .confirm-actions { display: flex; flex-direction: column; gap: 8px; }
-  }
-
-  
   /* === v5.7.4b additions === */
   #net-banner.hidden { display:none; }
   .tile { border:1px solid #e5e7eb; border-radius:12px; padding:12px; display:flex; align-items:center; gap:10px; background:#fff; }
@@ -68,7 +43,7 @@
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.4b — TH-day, Beep+Vibrate, Anti-double, Net banner, Tiles</p>
+      <p class="text-gray-500 mt-2">เวอร์ชัน 5.6 – First working build</p>
     </header>
     <div id="net-banner" class="hidden text-center py-2 text-xs font-semibold bg-yellow-50 text-yellow-700 border-b border-yellow-200">
       ออฟไลน์ — ระบบจะซิงก์เมื่อกลับมาออนไลน์
@@ -102,21 +77,6 @@
             <button id="clock-action-button" disabled class="w-full max-w-xs mx-auto inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400">
               กรุณามองกล้องเพื่อสแกนใบหน้า
             </button>
-            <!-- Auto-confirm UI (v5.7) -->
-            <div id="clock-confirm" class="hidden mt-4 p-4 border rounded-lg bg-gray-50">
-              <div class="flex items-center gap-4">
-                <img id="clock-snapshot" alt="snapshot" class="w-24 h-24 object-cover rounded-md border" />
-                <div class="flex-1">
-                  <p id="clock-suggest-text" class="font-semibold text-gray-800">ยืนยันการบันทึกเวลา?</p>
-                  <div class="mt-3 confirm-actions sm:flex sm:flex-row sm:flex-wrap gap-2">
-                    <button id="confirm-in" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-white bg-green-600 hover:bg-green-700">ยืนยันเข้า</button>
-                    <button id="confirm-out" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700">ยืนยันออก</button>
-                    <button id="confirm-cancel" class="inline-flex items-center justify-center px-4 py-2 rounded-md bg-white border hover:bg-gray-50 text-gray-700">สแกนใหม่</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-        
             <div class="mt-4">
               <button id="pin-fallback-button" class="text-sm text-indigo-600 hover:underline">สแกนหน้าไม่ผ่าน? ใช้รหัส PIN</button>
             </div>
@@ -257,19 +217,12 @@
     </div>
   </div>
 
-  
-  <script>
-    // v5.7.4: base path for face-api.js models (works on GitHub Pages subpaths)
-    window.MODEL_URL = window.MODEL_URL || './models';
-  </script>
-<script type="module">
+  <script type="module">
     // --- Firebase Imports ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit , serverTimestamp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-    const APP_VERSION = '5.7.4b — TH-day, Beep+Vibrate, Anti-double, Net banner, Tiles';
-    const MATCH_DISTANCE_THRESHOLD = 0.62; // higher accepts more (0.6–0.65 common)
     // --- Firebase Config (UPDATED) ---
     const firebaseConfig = {
       apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
@@ -302,7 +255,7 @@
     const tabs = { clock: document.getElementById('tab-clock'), register: document.getElementById('tab-register'), history: document.getElementById('tab-history') };
     const contents = { clock: document.getElementById('content-clock'), register: document.getElementById('content-register'), history: document.getElementById('content-history') };
 
-    let currentTab = 'clock';
+    let currentTab = 'register';
     let faceMatcher = null;
     let registeredUsersData = [];
     let recognitionInterval = null;
@@ -446,7 +399,7 @@
     async function startWebcam(videoElement, callback){
       if (!videoElement || videoElement.srcObject) return;
       try{
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } });
+        const stream = await navigator.mediaDevices.getUserMedia({ video:{} });
         videoElement.srcObject = stream;
         videoElement.addEventListener('loadedmetadata', () => {
           if (videoElement.id === 'video'){
@@ -484,106 +437,11 @@
             labeled.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
           }
         });
-        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, MATCH_DISTANCE_THRESHOLD) : null;
+        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, 0.5) : null;
       }catch(err){ console.error('Error loading registered users:', err); }
     }
 
-    
-    /* === v5.7 Auto-confirm Helpers === */
-    let lastLabel = null;
-    let stableCount = 0;
-    let stableTimer = null;      // start when we first see a user
-    let autoConfirmFailsafeTimer = null; // ensures we don't get stuck
-    const STABLE_FRAMES = 2; // 3× ~800ms = ~2.4s of stable detection
-
-    async function getTodaysCount(userId){
-      // Returns number of today's records for userId.
-      // Tries Firestore Timestamp range first; if it fails (e.g., timestamp stored as ISO string), falls back to string range.
-      try {
-        if (__writeBusy) return; __writeBusy = true; const now = new Date();
-        const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
-        const todayStr = `${y}-${m}-${d}`;
-        const start = new Date(`${todayStr}T00:00:00.000Z`);
-        const end   = new Date(`${todayStr}T23:59:59.999Z`);
-
-        let q1 = query(collection(db, `artifacts/${appId}/public/data/attendance`),
-          where('employeeId','==', userId),
-          where('timestamp','>=', start),
-          where('timestamp','<=', end)
-        );
-        let snap = await getDocs(q1);
-        if (snap && snap.size !== undefined && snap.size > 0) return snap.size;
-
-        // If no results (or wrong type), try ISO string range (works if timestamp stored as ISO text)
-        const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
-        const ny = nextDay.getFullYear(), nm = String(nextDay.getMonth()+1).padStart(2,'0'), nd = String(nextDay.getDate()).padStart(2,'0');
-        const nextStr = `${ny}-${nm}-${nd}`;
-
-        q1 = query(collection(db, `artifacts/${appId}/public/data/attendance`),
-          where('employeeId','==', userId),
-          where('timestamp','>=', todayStr),     // e.g., '2025-08-21'
-          where('timestamp','<', nextStr)        // '2025-08-22'
-        );
-        snap = await getDocs(q1);
-        if (snap && snap.size !== undefined) return snap.size;
-
-        return 0;
-      } catch (err) {
-        console.warn('getTodaysCount fallback due to error:', err);
-        // As a last resort: don't block confirmation, return 0 (assume IN)
-        return 0;
-      }
-    }
-    function snapshotCurrentFrame(){
-      const c = document.createElement('canvas');
-      const w = clockVideo.videoWidth || 640;
-      const h = clockVideo.videoHeight || 480;
-      c.width = w; c.height = h;
-      const ctx = c.getContext('2d');
-      ctx.translate(w, 0); ctx.scale(-1, 1); // mirror capture
-      ctx.drawImage(clockVideo, 0, 0, w, h);
-      return c.toDataURL('image/jpeg', 0.9);
-    }
-
-    async function proposeConfirmation(user){
-      stopRecognition();
-      // set snapshot preview immediately
-      const img = document.getElementById('clock-snapshot');
-      if (img) img.src = snapshotCurrentFrame();
-
-      const confirmBox = document.getElementById('clock-confirm');
-      const actionBtn = document.getElementById('clock-action-button');
-      if (confirmBox) confirmBox.classList.remove('hidden');
-      if (actionBtn) actionBtn.classList.add('hidden');
-
-      // Compute suggestion asynchronously—do not block UI
-      (async ()=>{
-        try {
-          const todays = await getTodaysCount(user.id);
-          const suggestedType = (todays % 2 === 0) ? 'IN' : 'OUT';
-          const suggestText = suggestedType === 'IN' ? 'แนะนำ: เข้างาน' : 'แนะนำ: ออกงาน';
-          const st = document.getElementById('clock-suggest-text');
-          if (st) st.textContent = `${suggestText} — ตรวจสอบและกดยืนยัน`;
-        } catch(e){ console.warn('suggest-type failed', e); }
-      })();
-
-      const cleanup = ()=>{
-        if (confirmBox) confirmBox.classList.add('hidden');
-        if (actionBtn) actionBtn.classList.remove('hidden');
-        lastLabel = null; stableCount = 0;
-        if (stableTimer) { clearTimeout(stableTimer); stableTimer = null; }
-        if (autoConfirmFailsafeTimer) { clearTimeout(autoConfirmFailsafeTimer); autoConfirmFailsafeTimer = null; }
-        startRecognition();
-      };
-
-      const btnIn  = document.getElementById('confirm-in');
-      const btnOut = document.getElementById('confirm-out');
-      const btnCancel = document.getElementById('confirm-cancel');
-      if (btnIn)  btnIn.onclick  = async ()=>{ btnIn.disabled = true; btnOut && (btnOut.disabled = true); btnCancel && (btnCancel.disabled = true); await recordAttendance(user, 'FACE', 'IN');  cleanup(); };
-      if (btnOut) btnOut.onclick = async ()=>{ btnOut.disabled = true; btnIn && (btnIn.disabled = true); btnCancel && (btnCancel.disabled = true); await recordAttendance(user, 'FACE', 'OUT'); cleanup(); };
-      if (btnCancel) btnCancel.onclick = ()=>{ showModal('ยกเลิก', 'ยกเลิกการยืนยันแล้ว กลับไปสแกนใหม่'); cleanup(); };
-    }
-function startRecognition(){
+    function startRecognition(){
       if (recognitionInterval || !faceMatcher) return;
       clockLoader.classList.add('hidden');
       clockContainer.classList.remove('hidden');
@@ -591,7 +449,7 @@ function startRecognition(){
       recognitionInterval = setInterval(async ()=>{
         if (currentTab!=='clock' || !pinContainer.classList.contains('hidden')) return;
         const detections = await faceapi
-          .detectAllFaces(clockVideo, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+          .detectAllFaces(clockVideo, new faceapi.SsdMobilenetv1Options())
           .withFaceLandmarks().withFaceDescriptors();
 
         const displaySize = { width: clockVideo.clientWidth, height: clockVideo.clientHeight };
@@ -605,40 +463,26 @@ function startRecognition(){
             activeUser = registeredUsersData.find(u=>u.id===bestMatch.label);
             if (activeUser){
               faceapi.draw.drawDetections(clockCanvas, resized);
-              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`; try { clockStatus.innerHTML += ` <span class="text-gray-400 text-xs">(พร้อมยืนยัน)</span>`; } catch(e){}; haptic(50); beep(880,80);
-              clockStatus.classList.add('text-green-600');
+              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
+              haptic(50); beep(880,80);
+clockStatus.classList.add('text-green-600');
               clockActionButton.disabled = false;
-              clockActionButton.textContent = 'กำลังยืนยันอัตโนมัติ...';
-              if (lastLabel === activeUser.id) {
-                stableCount++;
-              } else {
-                lastLabel = activeUser.id;
-                stableCount = 1;
-                if (stableTimer) clearTimeout(stableTimer);
-                // If the same user stays in frame ~1.2s, confirm
-                stableTimer = setTimeout(async ()=>{ await proposeConfirmation(activeUser); }, 1200);
-                // Failsafe: confirm after 5s even if counter jitters
-                if (!autoConfirmFailsafeTimer) {
-                  autoConfirmFailsafeTimer = setTimeout(async ()=>{ await proposeConfirmation(activeUser); }, 5000);
-                }
-              }
-              if (stableCount >= STABLE_FRAMES) { await proposeConfirmation(activeUser); }
+              clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
             } else resetClockStatus();
           } else resetClockStatus();
         } else resetClockStatus();
-      }, 800);
+      }, 1000);
     }
-    function stopRecognition(){
-      try { if (stableTimer) { clearTimeout(stableTimer); stableTimer = null; } if (autoConfirmFailsafeTimer) { clearTimeout(autoConfirmFailsafeTimer); autoConfirmFailsafeTimer = null; } } catch(e){} if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
+    function stopRecognition(){ if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
     function resetClockStatus(){
       activeUser=null; clockStatus.textContent=''; clockStatus.classList.remove('text-green-600');
       clockActionButton.disabled=true; clockActionButton.textContent='กรุณามองกล้องเพื่อสแกนใบหน้า';
     }
     clockActionButton.addEventListener('click', ()=>{ if (activeUser) recordAttendance(activeUser,'Face'); });
 
-    let __writeBusy = false;
-    async function recordAttendance(user, method, forcedType=null){
-      const now = new Date();
+    async let __writeBusy = false;
+    function recordAttendance(user, method){
+      if(__writeBusy){return;} __writeBusy=true; const now = new Date();
       const lastScan = lastScanTimestamps[user.id];
       if (lastScan && (now - lastScan)/1000 < SCAN_COOLDOWN_SECONDS){
         showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true);
@@ -649,11 +493,7 @@ function startRecognition(){
         const startOfDay = new Date(todayStr).getTime();
         const endOfDay = startOfDay + 24*60*60*1000 - 1;
 
-        const q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
-          where('employeeId','==', user.id),
-          where('timestamp','>=', new Date(startOfDay)),
-          where('timestamp','<=', new Date(endOfDay))
-        );
+        const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where('employeeId','==',user.id));
         const querySnapshot = await getDocs(q);
         let todays = 0;
         querySnapshot.forEach(docSnap=>{
@@ -661,7 +501,7 @@ function startRecognition(){
           if (t>=startOfDay && t<=endOfDay) todays++;
         });
 
-        const attendanceType = forcedType ?? (todays % 2 === 0 ? 'IN' : 'OUT');
+        const attendanceType = todays % 2 === 0 ? 'IN' : 'OUT';
         const typeText = attendanceType==='IN' ? 'เข้างาน' : 'ออกงาน';
 
         await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
@@ -905,8 +745,7 @@ function startRecognition(){
           loader.classList.add('hidden');
           registerFormContainer.classList.remove('hidden');
           historyDateInput.value = new Date().toISOString().split('T')[0];
-          document.querySelector('header p').textContent = `เวอร์ชัน ${APP_VERSION}`;
-          switchTab('clock');
+          switchTab('register');
           setInterval(updateClock, 1000);
         }
       }catch(err){
@@ -915,64 +754,22 @@ function startRecognition(){
       }
     }
     main();
-  </script>
-
-<script>
-  (function(){
-    var APP_VERSION = '5.7.4b — TH-day, Beep+Vibrate, Anti-double, Net banner, Tiles';
-    function setVer(){
-      var p = document.getElementById('app-version') || document.querySelector('header p');
-      if(p) p.textContent = 'เวอร์ชัน ' + APP_VERSION;
-    }
-    if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', setVer); }
-    else { setVer(); }
-  })();
-
-    // v5.7.4a: enhance mobile button sizes
-    document.addEventListener('DOMContentLoaded', () => {
-      const bigs = ['clock-action-button','confirm-in','confirm-out','confirm-cancel'];
-      bigs.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('btn-lg'); });
-    });
-
+  
     // === v5.7.4b helpers ===
     function getTodayTH(d = new Date()){
-      try{
-        const fmt = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit' });
-        return fmt.format(d);
-      }catch(e){
-        const t = new Date(d.getTime() + 7*60*60*1000);
-        const y=t.getUTCFullYear(), m=String(t.getUTCMonth()+1).padStart(2,'0'), da=String(t.getUTCDate()).padStart(2,'0');
-        return `${y}-${m}-${da}`;
-      }
+      try{ const fmt = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit'}); return fmt.format(d); }
+      catch(e){ const t = new Date(d.getTime()+7*60*60*1000); const y=t.getUTCFullYear(), m=String(t.getUTCMonth()+1).padStart(2,'0'), da=String(t.getUTCDate()).padStart(2,'0'); return `${y}-${m}-${da}`; }
     }
     let __audioCtx = null;
-    function initAudioCtxOnce(){
-      if (!__audioCtx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) __audioCtx = new AC();
-      }
-      if (__audioCtx && __audioCtx.state === 'suspended') { __audioCtx.resume().catch(()=>{}); }
-    }
-    function beep(freq=880, ms=80, vol=0.15){
-      try{
-        initAudioCtxOnce();
-        if (!__audioCtx) return;
-        const o = __audioCtx.createOscillator();
-        const g = __audioCtx.createGain();
-        o.type = 'sine'; o.frequency.setValueAtTime(freq, __audioCtx.currentTime);
-        g.gain.setValueAtTime(vol, __audioCtx.currentTime);
-        o.connect(g); g.connect(__audioCtx.destination);
-        o.start(); o.stop(__audioCtx.currentTime + ms/1000);
-      }catch(_){}
-    }
-    function haptic(ms=50){ try{ if (navigator.vibrate) navigator.vibrate(ms); }catch(_){ } }
+    function initAudioCtxOnce(){ if(!__audioCtx){ const AC=window.AudioContext||window.webkitAudioContext; if(AC) __audioCtx=new AC(); } if(__audioCtx && __audioCtx.state==='suspended'){ __audioCtx.resume().catch(()=>{});} }
+    function beep(freq=880, ms=80, vol=0.15){ try{ initAudioCtxOnce(); if(!__audioCtx) return; const o=__audioCtx.createOscillator(), g=__audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(freq,__audioCtx.currentTime); g.gain.setValueAtTime(vol,__audioCtx.currentTime); o.connect(g); g.connect(__audioCtx.destination); o.start(); o.stop(__audioCtx.currentTime+ms/1000);}catch(_){} }
+    function haptic(ms=50){ try{ if(navigator.vibrate) navigator.vibrate(ms);}catch(_){} }
     window.addEventListener('pointerdown', initAudioCtxOnce, { once:true });
-    const netBanner = document.getElementById('net-banner');
-    function refreshNetBanner(){ if (!netBanner) return; if (navigator.onLine) netBanner.classList.add('hidden'); else netBanner.classList.remove('hidden'); }
+    const netBanner=document.getElementById('net-banner');
+    function refreshNetBanner(){ if(!netBanner) return; if(navigator.onLine) netBanner.classList.add('hidden'); else netBanner.classList.remove('hidden'); }
     window.addEventListener('online', refreshNetBanner);
     window.addEventListener('offline', refreshNetBanner);
     refreshNetBanner();
 </script>
-
 </body>
 </html>
