@@ -34,7 +34,7 @@
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.6 — Robust model paths</p>
+      <p id="app-version" class="text-gray-500 mt-2">เวอร์ชัน 5.7.7 — Force face-api + CDN-first</p>
     </header>
 
     <!-- Tabs -->
@@ -408,10 +408,14 @@ function candidateLocalModelPaths(){
 }
 
 async function loadModels(){
+  if (loader) loader.innerHTML = '<p class="text-indigo-600">กำลังโหลดโมเดล AI (เตรียมไลบรารี)...</p>'; 
+  const okFa = await ensureFaceApiReady();
+  if (!okFa){ if (loader) loader.innerHTML = '<p class="text-red-500">โหลด face-api.js ไม่สำเร็จ</p>'; return false; }
+  if (loader) loader.innerHTML = '<p class="text-indigo-600">กำลังโหลดโมเดล AI (กำลังดึงไฟล์)...</p>';
   const CDN1 = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
   const CDN2 = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights';
   const LOCAL_CANDIDATES = candidateLocalModelPaths();
-  const SOURCES = [...LOCAL_CANDIDATES, CDN1, CDN2];
+  const SOURCES = [CDN1, CDN2, ...LOCAL_CANDIDATES];
 
   // fail-fast UI timeout (6s)
   let timeoutId = setTimeout(()=>{
@@ -428,6 +432,26 @@ async function loadModels(){
   if (loader) loader.innerHTML = `<p class="text-red-500">${msg}</p>`;
   if (clockLoader) clockLoader.innerHTML = `<p class="text-red-500">${msg}</p>`;
   return false;
+}
+
+async function ensureFaceApiReady(){
+  if (window.faceapi) return true;
+  // try injecting from CDN
+  const cdn = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+  try{
+    const s = document.createElement('script');
+    s.src = cdn; s.defer = true;
+    document.head.appendChild(s);
+    const ok = await new Promise((resolve)=>{
+      let waited = 0, iv = setInterval(()=>{
+        waited += 100;
+        if (window.faceapi){ clearInterval(iv); resolve(true); }
+        if (waited >= 6000){ clearInterval(iv); resolve(false); }
+      }, 100);
+    });
+    if (ok) return true;
+  }catch(e){ console.warn('inject face-api failed', e); }
+  return !!window.faceapi;
 }
 // --- Webcam ---
     async function startWebcam(videoElement, callback){
@@ -940,7 +964,7 @@ function recordAttendance(user, method, forcedType=null){
 
 <script>
   (function(){
-    var APP_VERSION = '5.7.6 — Robust model paths';
+    var APP_VERSION = '5.7.7 — Force face-api + CDN-first';
     function setVer(){
       var p = document.getElementById('app-version') || document.querySelector('header p');
       if(p) p.textContent = 'เวอร์ชัน ' + APP_VERSION;
