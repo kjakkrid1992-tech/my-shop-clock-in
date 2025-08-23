@@ -52,20 +52,20 @@
 
     <div class="mb-6 border-b border-gray-200">
       <nav class="flex space-x-4" aria-label="Tabs">
-        <button id="tab-clock" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ลงเวลา</button>
-        <button id="tab-register" class="tab-button text-indigo-600 border-b-2 border-indigo-500 px-3 py-2 font-medium text-sm rounded-t-md">ลงทะเบียน</button>
+        <button id="tab-clock" class="tab-button text-indigo-600 border-b-2 border-indigo-500 px-3 py-2 font-medium text-sm rounded-t-md">ลงเวลา</button>
+        <button id="tab-register" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ลงทะเบียน</button>
         <button id="tab-history" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ประวัติ</button>
       </nav>
     </div>
 
     <main>
-      <div id="content-clock" class="tab-content hidden p-4 md:p-6 bg-white rounded-lg shadow">
+      <div id="content-clock" class="tab-content p-4 md:p-6 bg-white rounded-lg shadow">
         <div id="clock-loader" class="text-center py-8">
           <p class="text-lg font-medium text-indigo-600">กำลังเตรียมระบบลงเวลา...</p>
         </div>
 
         <div id="clock-container" class="hidden grid md:grid-cols-2 gap-8 items-start">
-          <div class="text-center">
+          <div id="clock-interface-column" class="text-center">
             <div id="clock-video-container">
               <video id="clock-video" width="640" height="480" autoplay muted playsinline></video>
               <canvas id="clock-canvas"></canvas>
@@ -79,7 +79,7 @@
               <button id="pin-fallback-button" class="text-sm text-indigo-600 hover:underline">สแกนหน้าไม่ผ่าน? ใช้รหัส PIN</button>
             </div>
           </div>
-          <div>
+          <div id="recent-attendance-column">
             <h2 class="text-lg font-semibold text-gray-800 mb-4">5 รายการล่าสุด</h2>
             <div id="recent-attendance-list" class="space-y-2 bg-gray-50 p-3 rounded-lg border min-h-[300px]"></div>
           </div>
@@ -102,7 +102,7 @@
         </div>
       </div>
 
-      <div id="content-register" class="tab-content p-4 md:p-6 bg-white rounded-lg shadow">
+      <div id="content-register" class="tab-content hidden p-4 md:p-6 bg-white rounded-lg shadow">
         <div id="loader" class="text-center py-8">
           <p class="text-lg font-medium text-indigo-600">กำลังโหลดโมเดล AI...</p>
         </div>
@@ -359,9 +359,17 @@
 
       if (tabName==='clock'){
         stopWebcam(video);
+
+        // Reset layout to default two-column view
+        const clockInterface = document.getElementById('clock-interface-column');
+        if (clockInterface) clockInterface.classList.remove('hidden');
+        clockContainer.classList.remove('md:grid-cols-1');
+        clockContainer.classList.add('md:grid-cols-2');
+
         startWebcam(clockVideo, () => startRecognition());
         showPinForm(false);
         clockContainer.classList.remove('hidden');
+        resetClockStatus(); // Reset button text and state
       } else if (tabName==='register') {
         stopWebcam(clockVideo);
         stopRecognition();
@@ -451,7 +459,6 @@
             labeled.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
           }
         });
-        // Adjusted the threshold to 0.4 for stricter matching
         faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, 0.4) : null;
       }catch(err){ console.error('Error loading registered users:', err); }
     }
@@ -539,9 +546,13 @@
             
             await fetchRecentAttendance();
 
-            // --- Hide the video container and stop webcam after success ---
             stopWebcam(clockVideo);
-            clockContainer.classList.add('hidden');
+            
+            // Collapse camera view and expand recent list
+            document.getElementById('clock-interface-column').classList.add('hidden');
+            clockContainer.classList.remove('md:grid-cols-2');
+            clockContainer.classList.add('md:grid-cols-1');
+
         } catch (err) {
             console.error('Error recording attendance:', err);
             showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
@@ -592,8 +603,6 @@
         const docRef = doc(db, `artifacts/${appId}/public/data/employees`, employeeId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists() && docSnap.data().pin === pin){
-          // This calls the modified recordAttendance, but the button feedback is for clockActionButton
-          // For PIN, we just show the toast.
           await recordAttendance(docSnap.data(), 'PIN');
           showPinForm(false); pinEmployeeIdInput.value=''; pinCodeInput.value='';
         } else showModal('ข้อมูลไม่ถูกต้อง','รหัสพนักงานหรือ PIN ไม่ถูกต้อง', true);
@@ -779,7 +788,7 @@
           loader.classList.add('hidden');
           registerFormContainer.classList.remove('hidden');
           historyDateInput.value = new Date().toISOString().split('T')[0];
-          switchTab('register');
+          switchTab('clock');
           setInterval(updateClock, 1000);
         }
       }catch(err){
