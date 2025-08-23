@@ -361,6 +361,7 @@
         stopWebcam(video);
         startWebcam(clockVideo, () => startRecognition());
         showPinForm(false);
+        clockContainer.classList.remove('hidden');
       } else if (tabName==='register') {
         stopWebcam(clockVideo);
         stopRecognition();
@@ -450,7 +451,8 @@
             labeled.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
           }
         });
-        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, 0.45) : null;
+        // Adjusted the threshold to 0.4 for stricter matching
+        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, 0.4) : null;
       }catch(err){ console.error('Error loading registered users:', err); }
     }
 
@@ -536,10 +538,14 @@
             showToast('บันทึกเข้า/ออกเรียบร้อย');
             
             await fetchRecentAttendance();
+
+            // --- Hide the video container and stop webcam after success ---
+            stopWebcam(clockVideo);
+            clockContainer.classList.add('hidden');
         } catch (err) {
             console.error('Error recording attendance:', err);
             showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
-        } finally {
+            // Reset status on error
             resetClockStatus();
         }
     }
