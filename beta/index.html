@@ -37,34 +37,19 @@
     .recent-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
   }
 
-  
-  /* === v5.7.4c feedback styles === */
-  .spinner {
-    display:inline-block; width:1rem; height:1rem;
-    border:2px solid rgba(255,255,255,.6);
-    border-top-color:#fff; border-radius:50%;
-    animation:spin 1s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  #app-toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
-    z-index:60; transition:opacity .25s ease, transform .25s ease; }
-  #app-toast > div { background:#16a34a; color:#fff; padding:10px 14px; border-radius:999px;
-    box-shadow:0 6px 20px rgba(0,0,0,.2); font-weight:600; }
-
-</style>
+  </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p class="text-gray-500 mt-2">เวอร์ชัน 5.7.5 — แพตช์ลด false positive + ปรับ feedback</p>
+      <p class="text-gray-500 mt-2">เวอร์ชัน 5.7.4c</p>
     </header>
     <div id="net-banner" class="hidden text-center py-2 text-xs font-semibold bg-yellow-50 text-yellow-700 border-b border-yellow-200">
       ออฟไลน์ — ระบบจะซิงก์เมื่อกลับมาออนไลน์
     </div>
 
 
-    <!-- Tabs -->
     <div class="mb-6 border-b border-gray-200">
       <nav class="flex space-x-4" aria-label="Tabs">
         <button id="tab-clock" class="tab-button text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm rounded-t-md">ลงเวลา</button>
@@ -74,7 +59,6 @@
     </div>
 
     <main>
-      <!-- Clock -->
       <div id="content-clock" class="tab-content hidden p-4 md:p-6 bg-white rounded-lg shadow">
         <div id="clock-loader" class="text-center py-8">
           <p class="text-lg font-medium text-indigo-600">กำลังเตรียมระบบลงเวลา...</p>
@@ -88,27 +72,6 @@
             </div>
             <p id="clock-status" class="mt-4 text-lg font-semibold h-8"></p>
             <p id="clock-time" class="text-4xl font-bold text-gray-800 my-4"></p>
-
-            <!-- แผงเครื่องมือย่อ -->
-            <div class="mt-3 grid gap-3">
-              <!-- สรุปสถานะล่าสุด -->
-              <div id="clock-last-status" class="text-sm text-gray-600"></div>
-
-              <!-- ความเข้มงวดการจับคู่ -->
-              <div class="flex items-center gap-3 justify-center">
-                <label for="distance-slider" class="text-sm font-medium text-gray-700">ความเข้มงวด</label>
-                <input id="distance-slider" type="range" min="0.30" max="0.60" step="0.01" class="w-44">
-                <span id="distance-value" class="text-sm tabular-nums text-gray-700"></span>
-              </div>
-
-              <!-- ปุ่มยืนยันเข้า/ออก -->
-              <div class="flex items-center justify-center gap-3">
-                <button id="confirm-in-btn" class="px-4 py-2 rounded-md text-white bg-emerald-600 disabled:bg-gray-300" disabled>ยืนยันเข้างาน</button>
-                <button id="confirm-out-btn" class="px-4 py-2 rounded-md text-white bg-amber-600 disabled:bg-gray-300" disabled>ยืนยันออกงาน</button>
-              </div>
-              <p id="clock-hint" class="text-xs text-gray-500 text-center"></p>
-            </div>
-
             <button id="clock-action-button" disabled class="w-full max-w-xs mx-auto inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400">
               กรุณามองกล้องเพื่อสแกนใบหน้า
             </button>
@@ -122,7 +85,6 @@
           </div>
         </div>
 
-        <!-- PIN -->
         <div id="pin-container" class="hidden max-w-sm mx-auto mt-6">
           <h3 class="text-center font-semibold mb-4">ลงเวลาด้วยรหัส PIN</h3>
           <div class="space-y-4">
@@ -140,7 +102,6 @@
         </div>
       </div>
 
-      <!-- Register -->
       <div id="content-register" class="tab-content p-4 md:p-6 bg-white rounded-lg shadow">
         <div id="loader" class="text-center py-8">
           <p class="text-lg font-medium text-indigo-600">กำลังโหลดโมเดล AI...</p>
@@ -190,7 +151,6 @@
         </div>
       </div>
 
-      <!-- History -->
       <div id="content-history" class="tab-content hidden p-4 md:p-6 bg-white rounded-lg shadow">
         <h2 class="text-2xl font-bold mb-4">ประวัติการลงเวลา</h2>
 
@@ -229,7 +189,6 @@
     </main>
   </div>
 
-  <!-- Modal -->
   <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 modal-overlay opacity-0 pointer-events-none">
     <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4 modal-content transform scale-95">
       <h3 id="modal-title" class="text-lg font-medium leading-6"></h3>
@@ -240,7 +199,6 @@
     </div>
   </div>
 
-  <!-- Confirm Modal -->
   <div id="confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 modal-overlay opacity-0 pointer-events-none">
     <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4 modal-content transform scale-95">
       <h3 class="text-lg font-medium leading-6 text-yellow-700">ยืนยันการลบ</h3>
@@ -251,6 +209,11 @@
       </div>
     </div>
   </div>
+
+  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-green-600 text-white py-2 px-5 rounded-full text-sm font-semibold shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none">
+    <p id="toast-message"></p>
+  </div>
+
 
   <script type="module">
     // --- Firebase Imports ---
@@ -276,13 +239,6 @@
     const db  = getFirestore(app);
     const auth = getAuth(app);
 
-    // --- Matching threshold (lower distance = stricter match) ---
-    let MATCH_DISTANCE = (() => {
-      const v = parseFloat(localStorage.getItem('match_distance'));
-      if (!isNaN(v)) return Math.min(Math.max(v, 0.25), 0.8);
-      return 0.45; // default stricter than 0.50
-    })();
-
     // --- Global State & Elements ---
     const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modal-title');
@@ -293,6 +249,10 @@
     const confirmModalMessage = document.getElementById('confirm-modal-message');
     const confirmModalCancel = document.getElementById('confirm-modal-cancel');
     const confirmModalDelete = document.getElementById('confirm-modal-delete');
+    
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    let toastTimeout = null;
 
     const tabs = { clock: document.getElementById('tab-clock'), register: document.getElementById('tab-register'), history: document.getElementById('tab-history') };
     const contents = { clock: document.getElementById('content-clock'), register: document.getElementById('content-register'), history: document.getElementById('content-history') };
@@ -304,6 +264,8 @@
     const lastScanTimestamps = {};
     const SCAN_COOLDOWN_SECONDS = 30;
     let userToDeleteId = null;
+    const SPINNER_SVG = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+
 
     // --- Clock Tab Elements ---
     const clockLoader = document.getElementById('clock-loader');
@@ -313,13 +275,6 @@
     const clockStatus = document.getElementById('clock-status');
     const clockTime = document.getElementById('clock-time');
     const clockActionButton = document.getElementById('clock-action-button');
-    const confirmInBtn = document.getElementById('confirm-in-btn');
-    const confirmOutBtn = document.getElementById('confirm-out-btn');
-    const distanceSlider = document.getElementById('distance-slider');
-    const distanceValue = document.getElementById('distance-value');
-    const lastStatusBox = document.getElementById('clock-last-status');
-    const clockHint = document.getElementById('clock-hint');
-
     const pinFallbackButton = document.getElementById('pin-fallback-button');
     const pinContainer = document.getElementById('pin-container');
     const pinEmployeeIdInput = document.getElementById('pin-employeeId');
@@ -365,38 +320,13 @@
       modal.querySelector('.modal-content').classList.add('scale-95');
     });
 
-    // v5.7.4c toast helper
-    function showToast(message){
-      const toast = document.getElementById('app-toast');
-      const text = document.getElementById('app-toast-text');
-      if (!toast || !text) return;
-      text.textContent = message;
-      toast.classList.remove('opacity-0','translate-y-3','pointer-events-none');
-      setTimeout(()=>{
-        toast.classList.add('opacity-0','translate-y-3','pointer-events-none');
-      }
-
-    // --- slider for match distance ---
-    if (distanceSlider && distanceValue){
-      // init value from current MATCH_DISTANCE
-      distanceSlider.value = (Math.round(MATCH_DISTANCE*100)/100).toFixed(2);
-      distanceValue.textContent = distanceSlider.value;
-      distanceSlider.addEventListener('input', (e)=>{
-        const val = parseFloat(e.target.value);
-        if (!isNaN(val)){
-          MATCH_DISTANCE = val;
-          localStorage.setItem('match_distance', String(val));
-          distanceValue.textContent = val.toFixed(2);
-          if (typeof rebuildFaceMatcher === 'function') rebuildFaceMatcher();
-        }
-      });
-            return; // success
-          }catch(e){ lastErr=e; if(attempt<MAX_RETRY){ showToast(`เครือข่ายติดขัด: ลองใหม่ (${attempt}/3)`); await new Promise(r=>setTimeout(r, 800*attempt)); } }
-        }
-        throw lastErr;
-      })();
-    }
-, 1600);
+    function showToast(message) {
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastMessage.textContent = message;
+      toast.classList.remove('opacity-0');
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0');
+      }, 1600);
     }
 
     function showConfirmModal(id, name) {
@@ -520,22 +450,7 @@
             labeled.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
           }
         });
-        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, MATCH_DISTANCE) : null;
-      // helper available globally
-      function rebuildFaceMatcher(){
-        try{
-          const labeled = [];
-          registeredUsersData.forEach(user=>{
-            if (user && user.descriptor && user.descriptor.length){
-              const descriptor = new Float32Array(user.descriptor);
-              labeled.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
-            }
-          });
-          faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, MATCH_DISTANCE) : null;
-          console.log('[matcher] rebuilt with threshold', MATCH_DISTANCE);
-        }catch(e){ console.warn('rebuildFaceMatcher error', e); }
-      }
-
+        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, 0.45) : null;
       }catch(err){ console.error('Error loading registered users:', err); }
     }
 
@@ -549,9 +464,6 @@
         const detections = await faceapi
           .detectAllFaces(clockVideo, new faceapi.SsdMobilenetv1Options())
           .withFaceLandmarks().withFaceDescriptors();
-        // 2-frame confirmation state
-        if (typeof window.__matchState === 'undefined') window.__matchState = { lastId:null, hits:0, confirmed:false };
-        const st = window.__matchState;
 
         const displaySize = { width: clockVideo.clientWidth, height: clockVideo.clientHeight };
         faceapi.matchDimensions(clockCanvas, displaySize);
@@ -561,136 +473,79 @@
         if (detections.length > 0){
           const bestMatch = faceMatcher.findBestMatch(detections[0].descriptor);
           if (bestMatch.label !== 'unknown'){
-          if (st.lastId === bestMatch.label) st.hits++; else { st.lastId = bestMatch.label; st.hits = 1; }
-          if (st.hits >= 2) st.confirmed = true;
             activeUser = registeredUsersData.find(u=>u.id===bestMatch.label);
             if (activeUser){
               faceapi.draw.drawDetections(clockCanvas, resized);
-              if (st.confirmed) fetchLastStatusForEmployee(activeUser.id);
-              clockStatus.textContent = st.confirmed ? `ยืนยันตัวตนแล้ว: ${activeUser.name}` : `พบใบหน้า: ${activeUser.name} (รอให้คงที่อีกนิด)`;
+              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
               haptic(50); beep(880,80);
-clockStatus.classList.add('text-green-600');
-              confirmInBtn && (confirmInBtn.disabled = !st.confirmed);
-              confirmOutBtn && (confirmOutBtn.disabled = !st.confirmed);
-              clockActionButton.disabled = !st.confirmed;
+              clockStatus.classList.add('text-green-600');
+              clockActionButton.disabled = false;
               clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
-            } else { st.hits = 0; st.confirmed = false; resetClockStatus(); }
-          } else { st.hits = 0; st.confirmed = false; resetClockStatus(); }
-        } else { st.hits = 0; st.confirmed = false; resetClockStatus(); }
+            } else resetClockStatus();
+          } else resetClockStatus();
+        } else resetClockStatus();
       }, 1000);
     }
     function stopRecognition(){ if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
     function resetClockStatus(){
-      activeUser=null; clockStatus.textContent=''; clockStatus.classList.remove('text-green-600');
-      clockActionButton.disabled=true; clockActionButton.textContent='กรุณามองกล้องเพื่อสแกนใบหน้า';
+      activeUser=null; 
+      clockStatus.textContent=''; 
+      clockStatus.classList.remove('text-green-600');
+      clockActionButton.disabled=true; 
+      clockActionButton.innerHTML = 'กรุณามองกล้องเพื่อสแกนใบหน้า';
     }
     clockActionButton.addEventListener('click', ()=>{ if (activeUser) recordAttendance(activeUser,'Face'); });
 
-    // Confirm buttons
-    function setBusy(btn, busy){
-      if (!btn) return;
-      if (busy){
-        btn.disabled = true;
-        const prev = btn.getAttribute('data-prev-label') || btn.textContent;
-        btn.setAttribute('data-prev-label', prev);
-        btn.innerHTML = `<span class="spinner mr-2"></span>กำลังบันทึก…`;
-      } else {
-        const prev = btn.getAttribute('data-prev-label') || '';
-        if (prev) btn.textContent = prev;
-        btn.disabled = false;
-      }
-    }
-    if (confirmInBtn){ confirmInBtn.addEventListener('click', async ()=>{ if (activeUser){ setBusy(confirmInBtn,true); try{ await recordAttendance(activeUser,'Face','IN'); } finally { setBusy(confirmInBtn,false);} }}); }
-    if (confirmOutBtn){ confirmOutBtn.addEventListener('click', async ()=>{ if (activeUser){ setBusy(confirmOutBtn,true); try{ await recordAttendance(activeUser,'Face','OUT'); } finally { setBusy(confirmOutBtn,false);} }}); }
+    async function recordAttendance(user, method) {
+        const now = new Date();
+        const lastScan = lastScanTimestamps[user.id];
+        if (lastScan && (now - lastScan) / 1000 < SCAN_COOLDOWN_SECONDS) {
+            showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true);
+            return;
+        }
 
+        clockActionButton.disabled = true;
+        clockActionButton.innerHTML = `${SPINNER_SVG}<span>กำลังบันทึก...</span>`;
 
-    let __writeBusy = false;
-    function recordAttendance(user, method, forcedType){
-  // prevent double submit
-  if(__writeBusy){ return; }
-  const now = new Date();
-  const lastScan = lastScanTimestamps[user.id];
-  if (lastScan && (now - lastScan)/1000 < SCAN_COOLDOWN_SECONDS){
-    showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true);
-    return;
-  }
+        try {
+            const todayStr = now.toISOString().split('T')[0];
+            const startOfDay = new Date(todayStr).getTime();
+            const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
 
-  __writeBusy = true;
-  // Button busy UI
-  const prevHTML = clockActionButton.innerHTML;
-  const prevDisabled = clockActionButton.disabled;
-  clockActionButton.disabled = true;
-  clockActionButton.innerHTML = `<span class="spinner mr-2"></span>กำลังบันทึก…`;
+            const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where('employeeId', '==', user.id));
+            const querySnapshot = await getDocs(q);
+            let todays = 0;
+            querySnapshot.forEach(docSnap => {
+                const t = docSnap.data().timestamp.toDate().getTime();
+                if (t >= startOfDay && t <= endOfDay) todays++;
+            });
 
-  (async () => {
-    try{
-      const todayStr = now.toISOString().split('T')[0];
-      const startOfDay = new Date(todayStr).getTime();
-      const endOfDay = startOfDay + 24*60*60*1000 - 1;
+            const attendanceType = todays % 2 === 0 ? 'IN' : 'OUT';
 
-      const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where('employeeId','==',user.id));
-      const querySnapshot = await getDocs(q);
-      let todays = 0;
-      querySnapshot.forEach(docSnap=>{
-        const t = docSnap.data().timestamp.toDate().getTime();
-        if (t>=startOfDay && t<=endOfDay) todays++;
-      });
-
-      const attendanceType = forcedType || (todays % 2 === 0 ? 'IN' : 'OUT');
-      const typeText = attendanceType==='IN' ? 'เข้างาน' : 'ออกงาน';
-
-      (async ()=>{
-        const MAX_RETRY=3; let attempt=0; let lastErr=null;
-        while(attempt<MAX_RETRY){
-          attempt++;
-          try{
             await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
-        employeeId: user.id, employeeName: user.name, timestamp: serverTimestamp(), type: attendanceType, method
-      });
+                employeeId: user.id,
+                employeeName: user.name,
+                timestamp: serverTimestamp(),
+                type: attendanceType,
+                method
+            });
 
-      lastScanTimestamps[user.id] = now;
-      haptic(50); beep(1200,90);
-      showToast(`บันทึก${typeText}เรียบร้อย`);
-      resetClockStatus();
-      await fetchRecentAttendance();
-    }catch(err){
-      console.error('Error recording attendance:', err);
-      showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
-    } finally {
-      clockActionButton.innerHTML = prevHTML || 'กดเพื่อบันทึกเวลา';
-      clockActionButton.disabled = prevDisabled;
-      __writeBusy = false;
+            lastScanTimestamps[user.id] = now;
+            haptic(50);
+            beep(1200, 90);
+            showToast('บันทึกเข้า/ออกเรียบร้อย');
+            
+            await fetchRecentAttendance();
+        } catch (err) {
+            console.error('Error recording attendance:', err);
+            showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
+        } finally {
+            resetClockStatus();
+        }
     }
-  })();
-}
-    
-    // สรุปสถานะล่าสุดของพนักงาน
-    let _lastStatusCacheId = null;
-    async function fetchLastStatusForEmployee(empId){
-      try{
-        if (!empId) return;
-        if (_lastStatusCacheId === empId) return; // เปลี่ยนคนเท่านั้นค่อยโหลดใหม่
-        _lastStatusCacheId = empId;
-        if (lastStatusBox) lastStatusBox.textContent = 'กำลังดึงสถานะล่าสุด...';
-        const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where('employeeId','==', empId), orderBy('timestamp','desc'), limit(1));
-        const qs = await getDocs(q);
-        if (qs.empty){ if (lastStatusBox) lastStatusBox.textContent = 'ยังไม่มีประวัติการเข้าออก'; return; }
-        const r = qs.docs[0].data();
-        const t = r.timestamp.toDate();
-        const diffMin = Math.max(0, Math.round((Date.now() - t.getTime())/60000));
-        const typeText = r.type==='IN' ? 'เข้างาน' : 'ออกงาน';
-        if (lastStatusBox) lastStatusBox.textContent = `สถานะล่าสุด: ${typeText} เมื่อ ${diffMin} นาทีที่แล้ว (${t.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})})`;
-        // แนะนำปุ่มถัดไปตามสลับเข้า/ออก
-        const suggestNext = r.type==='IN' ? 'OUT' : 'IN';
-        if (clockHint) clockHint.textContent = suggestNext==='IN' ? 'แนะนำ: เข้างาน' : 'แนะนำ: ออกงาน';
-        // ตกแต่งปุ่มที่แนะนำ
-        [confirmInBtn, confirmOutBtn].forEach(b=> b && b.classList.remove('ring-2','ring-offset-2','ring-blue-500'));
-        if (suggestNext==='IN' && confirmInBtn) confirmInBtn.classList.add('ring-2','ring-offset-2','ring-blue-500');
-        if (suggestNext==='OUT' && confirmOutBtn) confirmOutBtn.classList.add('ring-2','ring-offset-2','ring-blue-500');
 
-      }catch(e){ if (lastStatusBox) lastStatusBox.textContent = 'ดึงสถานะล่าสุดไม่สำเร็จ'; }
-    }
-async function fetchRecentAttendance(){
+
+    async function fetchRecentAttendance(){
       try{
         const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), orderBy('timestamp','desc'), limit(5));
         const querySnapshot = await getDocs(q);
@@ -731,6 +586,8 @@ async function fetchRecentAttendance(){
         const docRef = doc(db, `artifacts/${appId}/public/data/employees`, employeeId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists() && docSnap.data().pin === pin){
+          // This calls the modified recordAttendance, but the button feedback is for clockActionButton
+          // For PIN, we just show the toast.
           await recordAttendance(docSnap.data(), 'PIN');
           showPinForm(false); pinEmployeeIdInput.value=''; pinCodeInput.value='';
         } else showModal('ข้อมูลไม่ถูกต้อง','รหัสพนักงานหรือ PIN ไม่ถูกต้อง', true);
@@ -942,11 +799,5 @@ async function fetchRecentAttendance(){
     window.addEventListener('offline', refreshNetBanner);
     refreshNetBanner();
 </script>
-
-  <!-- v5.7.4c Toast container -->
-  <div id="app-toast" class="opacity-0 translate-y-3 pointer-events-none">
-    <div id="app-toast-text">บันทึกเรียบร้อย</div>
-  </div>
-
 </body>
 </html>
