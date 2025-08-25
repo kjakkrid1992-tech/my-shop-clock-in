@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ระบบบันทึกเวลาด้วยใบหน้า</title>
+  <title>ระบบบันทึกเวลาด้วยใบหน้า — v5.8.0</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -21,34 +21,30 @@
     }
     #video, #clock-video { width:100%; height:auto; }
     #clock-canvas { position:absolute; top:0; left:0; }
-  
-  /* === v5.7.4b additions === */
-  #net-banner.hidden { display:none; }
-  .tile { border:1px solid #e5e7eb; border-radius:12px; padding:12px; display:flex; align-items:center; gap:10px; background:#fff; }
-  .tile .time { font-weight:700; font-size:18px; min-width:72px; }
-  .badge-in { background:#dcfce7; color:#166534; font-weight:700; padding:2px 8px; border-radius:999px; font-size:12px; }
-  .badge-out{ background:#fee2e2; color:#991b1b; font-weight:700; padding:2px 8px; border-radius:999px; font-size:12px; }
-  @media (max-width: 640px) {
-    #clock-video, #video { width:100%; max-width:360px; height:auto; }
-    #clock-video-container, #video-container { max-width:360px; margin:0 auto; }
-    .recent-grid { display:grid; grid-template-columns:1fr; gap:10px; }
-  }
-  @media (min-width: 641px) {
-    .recent-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-  }
-
+    #net-banner.hidden { display:none; }
+    .tile { border:1px solid #e5e7eb; border-radius:12px; padding:12px; display:flex; align-items:center; gap:10px; background:#fff; }
+    .tile .time { font-weight:700; font-size:18px; min-width:72px; }
+    .badge-in { background:#dcfce7; color:#166534; font-weight:700; padding:2px 8px; border-radius:999px; font-size:12px; }
+    .badge-out{ background:#fee2e2; color:#991b1b; font-weight:700; padding:2px 8px; border-radius:999px; font-size:12px; }
+    @media (max-width: 640px) {
+      #clock-video, #video { width:100%; max-width:360px; height:auto; }
+      #clock-video-container, #video-container { max-width:360px; margin:0 auto; }
+      .recent-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+    }
+    @media (min-width: 641px) {
+      .recent-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="container mx-auto p-4 md:p-8 max-w-6xl">
     <header class="text-center mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-700">ระบบบันทึกเวลาด้วยใบหน้า</h1>
-      <p class="text-gray-500 mt-2">เวอร์ชัน 5.7.4c</p>
+      <p class="text-gray-500 mt-2">เวอร์ชัน 5.8.0 (ปรับให้ง่ายต่อการสแกน)</p>
     </header>
     <div id="net-banner" class="hidden text-center py-2 text-xs font-semibold bg-yellow-50 text-yellow-700 border-b border-yellow-200">
       ออฟไลน์ — ระบบจะซิงก์เมื่อกลับมาออนไลน์
     </div>
-
 
     <div class="mb-6 border-b border-gray-200">
       <nav class="flex space-x-4" aria-label="Tabs">
@@ -78,7 +74,30 @@
             <div class="mt-4">
               <button id="pin-fallback-button" class="text-sm text-indigo-600 hover:underline">สแกนหน้าไม่ผ่าน? ใช้รหัส PIN</button>
             </div>
+
+            <!-- Advanced sensitivity controls -->
+            <details id="adv-settings" class="mt-5">
+              <summary class="text-xs text-gray-500 cursor-pointer">ตั้งค่าขั้นสูง (ปรับความไว)</summary>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 text-sm">
+                <label class="flex flex-col items-start">
+                  <span>ความไวจำใบหน้า</span>
+                  <input id="matchDistance" type="range" min="0.35" max="0.60" step="0.01" class="w-full">
+                  <small id="matchDistanceVal" class="text-gray-500"></small>
+                </label>
+                <label class="flex flex-col items-start">
+                  <span>เฟรมติดกัน</span>
+                  <input id="stableFrames" type="range" min="1" max="3" step="1" class="w-full">
+                  <small id="stableFramesVal" class="text-gray-500"></small>
+                </label>
+                <label class="flex flex-col items-start">
+                  <span>ความมั่นใจตรวจพบ</span>
+                  <input id="minScore" type="range" min="0.40" max="0.80" step="0.01" class="w-full">
+                  <small id="minScoreVal" class="text-gray-500"></small>
+                </label>
+              </div>
+            </details>
           </div>
+
           <div id="recent-attendance-column">
             <h2 class="text-lg font-semibold text-gray-800 mb-4">5 รายการล่าสุด</h2>
             <div id="recent-attendance-list" class="space-y-2 bg-gray-50 p-3 rounded-lg border min-h-[300px]"></div>
@@ -189,6 +208,7 @@
     </main>
   </div>
 
+  <!-- Modals & Toast -->
   <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 modal-overlay opacity-0 pointer-events-none">
     <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4 modal-content transform scale-95">
       <h3 id="modal-title" class="text-lg font-medium leading-6"></h3>
@@ -214,14 +234,13 @@
     <p id="toast-message"></p>
   </div>
 
-
   <script type="module">
     // --- Firebase Imports ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit , serverTimestamp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-    // --- Firebase Config (UPDATED) ---
+    // --- Firebase Config (UNCHANGED) ---
     const firebaseConfig = {
       apiKey: "AIzaSyCxhLq7q5M6OQsVxgytFi7vSu8fOrV_yVo",
       authDomain: "face-attendance-app-7231d.firebaseapp.com",
@@ -249,7 +268,7 @@
     const confirmModalMessage = document.getElementById('confirm-modal-message');
     const confirmModalCancel = document.getElementById('confirm-modal-cancel');
     const confirmModalDelete = document.getElementById('confirm-modal-delete');
-    
+
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
     let toastTimeout = null;
@@ -257,7 +276,7 @@
     const tabs = { clock: document.getElementById('tab-clock'), register: document.getElementById('tab-register'), history: document.getElementById('tab-history') };
     const contents = { clock: document.getElementById('content-clock'), register: document.getElementById('content-register'), history: document.getElementById('content-history') };
 
-    let currentTab = 'register';
+    let currentTab = 'clock';
     let faceMatcher = null;
     let registeredUsersData = [];
     let recognitionInterval = null;
@@ -266,6 +285,29 @@
     let userToDeleteId = null;
     const SPINNER_SVG = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
+    // Sensitivity (tunable without code)
+    let MATCH_DISTANCE = parseFloat(localStorage.getItem('match_distance') || '0.45'); // higher = ง่ายขึ้น
+    let MIN_SCORE      = parseFloat(localStorage.getItem('min_score') || '0.60');      // lower = ตรวจพบง่ายขึ้น
+    let STABLE_FRAMES  = parseInt(localStorage.getItem('stable_frames') || '2', 10);    // เฟรมติดกัน
+
+    // Bind UI sliders
+    const mdEl = document.getElementById('matchDistance');
+    const msEl = document.getElementById('minScore');
+    const sfEl = document.getElementById('stableFrames');
+    const mdVal = document.getElementById('matchDistanceVal');
+    const msVal = document.getElementById('minScoreVal');
+    const sfVal = document.getElementById('stableFramesVal');
+    function syncTunableUI(){
+      if (!mdEl) return;
+      mdEl.value = MATCH_DISTANCE.toFixed(2); mdVal.textContent = `ปัจจุบัน: ${MATCH_DISTANCE.toFixed(2)}`;
+      msEl.value = MIN_SCORE.toFixed(2);      msVal.textContent = `ปัจจุบัน: ${MIN_SCORE.toFixed(2)}`;
+      sfEl.value = STABLE_FRAMES;             sfVal.textContent = `ปัจจุบัน: ${STABLE_FRAMES} เฟรม`;
+    }
+    function hookTunables(){
+      mdEl.addEventListener('input', e=>{ MATCH_DISTANCE = parseFloat(e.target.value); localStorage.setItem('match_distance', MATCH_DISTANCE.toString()); if(faceMatcher) faceMatcher.distanceThreshold = MATCH_DISTANCE; mdVal.textContent = `ปัจจุบัน: ${MATCH_DISTANCE.toFixed(2)}`; });
+      msEl.addEventListener('input', e=>{ MIN_SCORE = parseFloat(e.target.value); localStorage.setItem('min_score', MIN_SCORE.toString()); msVal.textContent = `ปัจจุบัน: ${MIN_SCORE.toFixed(2)}`; });
+      sfEl.addEventListener('input', e=>{ STABLE_FRAMES = parseInt(e.target.value,10); localStorage.setItem('stable_frames', STABLE_FRAMES.toString()); sfVal.textContent = `ปัจจุบัน: ${STABLE_FRAMES} เฟรม`; });
+    }
 
     // --- Clock Tab Elements ---
     const clockLoader = document.getElementById('clock-loader');
@@ -310,7 +352,7 @@
     // --- UI helpers ---
     function showModal(title, message, isError = false) {
       modalTitle.textContent = title;
-      modalMessage.textContent = message;
+      modalMessage.innerHTML = message;
       modalTitle.className = isError ? 'text-lg font-medium text-red-700' : 'text-lg font-medium text-gray-900';
       modal.classList.remove('opacity-0','pointer-events-none');
       modal.querySelector('.modal-content').classList.remove('scale-95');
@@ -324,9 +366,7 @@
       if (toastTimeout) clearTimeout(toastTimeout);
       toastMessage.textContent = message;
       toast.classList.remove('opacity-0');
-      toastTimeout = setTimeout(() => {
-        toast.classList.add('opacity-0');
-      }, 1600);
+      toastTimeout = setTimeout(() => { toast.classList.add('opacity-0'); }, 1600);
     }
 
     function showConfirmModal(id, name) {
@@ -359,17 +399,14 @@
 
       if (tabName==='clock'){
         stopWebcam(video);
-
-        // Reset layout to default two-column view
         const clockInterface = document.getElementById('clock-interface-column');
         if (clockInterface) clockInterface.classList.remove('hidden');
         clockContainer.classList.remove('md:grid-cols-1');
         clockContainer.classList.add('md:grid-cols-2');
-
         startWebcam(clockVideo, () => startRecognition());
         showPinForm(false);
         clockContainer.classList.remove('hidden');
-        resetClockStatus(); // Reset button text and state
+        resetClockStatus();
       } else if (tabName==='register') {
         stopWebcam(clockVideo);
         stopRecognition();
@@ -385,21 +422,15 @@
     // --- Face-API model loading (with fallbacks) ---
     async function trySource(MODEL_URL){
       if(!window.faceapi) throw new Error('face-api.js not loaded');
-      console.log('[models] probing:', MODEL_URL);
-
       const ping = await fetch(`${MODEL_URL}/tiny_face_detector_model-weights_manifest.json`, { cache:'reload' });
       if (!ping.ok) throw new Error(`manifest 404 at ${MODEL_URL}`);
-
       const sequence = [
         ['tinyFaceDetector', ()=>faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)],
         ['faceLandmark68', ()=>faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)],
         ['faceRecognition', ()=>faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)],
         ['ssdMobilenetv1', ()=>faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)],
       ];
-      for (const [name, loader] of sequence) {
-        await loader();
-        console.log(`[models] ok: ${name}`);
-      }
+      for (const [name, loader] of sequence) { await loader(); }
     }
     async function loadModels(){
       const SOURCES = [
@@ -408,7 +439,7 @@
         'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js-models/weights'
       ];
       for (const src of SOURCES){
-        try { await trySource(src); console.log('[models] loaded from:', src); return true; }
+        try { await trySource(src); return true; }
         catch(e){ console.warn('[models] source failed:', src, e); }
       }
       const msg = 'เกิดข้อผิดพลาดในการโหลดโมเดล AI<br>กรุณารีเฟรชหรือลองใหม่';
@@ -421,15 +452,16 @@
     async function startWebcam(videoElement, callback){
       if (!videoElement || videoElement.srcObject) return;
       try{
-        const stream = await navigator.mediaDevices.getUserMedia({ video:{} });
+        const constraints = { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 }, advanced: [{ focusMode: 'continuous' }, { exposureMode: 'continuous' }] } };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         videoElement.srcObject = stream;
         videoElement.addEventListener('loadedmetadata', () => {
           if (videoElement.id === 'video'){
             captureButton.disabled = false;
-            statusMessage.textContent = 'กรุณาจัดใบหน้าให้อยู่ในกรอบ';
+            statusMessage.textContent = 'กรุณาจัดใบหน้าให้อยู่ในกรอบ (แสงสว่างพอ)';
           }
           if (callback) callback();
-        });
+        }, { once:true });
       }catch(err){
         console.error('Error accessing webcam:', err);
         const msg = 'ไม่สามารถเข้าถึงกล้องได้';
@@ -459,108 +491,133 @@
             labeled.push(new faceapi.LabeledFaceDescriptors(user.id, [descriptor]));
           }
         });
-        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, 0.4) : null;
+        faceMatcher = labeled.length ? new faceapi.FaceMatcher(labeled, MATCH_DISTANCE) : null;
       }catch(err){ console.error('Error loading registered users:', err); }
     }
 
     function startRecognition(){
-      if (recognitionInterval || !faceMatcher) return;
+      if (recognitionInterval || !faceMatcher) { clockLoader.classList.add('hidden'); clockContainer.classList.remove('hidden'); return; }
       clockLoader.classList.add('hidden');
       clockContainer.classList.remove('hidden');
+
+      const tfdOpts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: MIN_SCORE });
+      const displaySize = ()=>({ width: clockVideo.clientWidth, height: clockVideo.clientHeight });
+      const ctx = clockCanvas.getContext('2d');
+
+      let stable = { label:null, count:0, lastCenter:null };
 
       recognitionInterval = setInterval(async ()=>{
         if (currentTab!=='clock' || !pinContainer.classList.contains('hidden')) return;
         const detections = await faceapi
-          .detectAllFaces(clockVideo, new faceapi.SsdMobilenetv1Options())
+          .detectAllFaces(clockVideo, tfdOpts)
           .withFaceLandmarks().withFaceDescriptors();
 
-        const displaySize = { width: clockVideo.clientWidth, height: clockVideo.clientHeight };
-        faceapi.matchDimensions(clockCanvas, displaySize);
-        const resized = faceapi.resizeResults(detections, displaySize);
-        clockCanvas.getContext('2d').clearRect(0,0,clockCanvas.width,clockCanvas.height);
+        const ds = displaySize();
+        faceapi.matchDimensions(clockCanvas, ds);
+        ctx.clearRect(0,0,clockCanvas.width,clockCanvas.height);
 
-        if (detections.length > 0){
-          const bestMatch = faceMatcher.findBestMatch(detections[0].descriptor);
-          if (bestMatch.label !== 'unknown'){
-            activeUser = registeredUsersData.find(u=>u.id===bestMatch.label);
-            if (activeUser){
-              faceapi.draw.drawDetections(clockCanvas, resized);
-              clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
-              haptic(50); beep(880,80);
-              clockStatus.classList.add('text-green-600');
-              clockActionButton.disabled = false;
-              clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
-            } else resetClockStatus();
-          } else resetClockStatus();
-        } else resetClockStatus();
-      }, 1000);
+        if (!detections.length){ resetClockStatus(); stable = {label:null,count:0,lastCenter:null}; return; }
+
+        // pick largest box (closest face)
+        detections.sort((a,b)=> (b.detection.box.width*b.detection.box.height) - (a.detection.box.width*a.detection.box.height));
+        const det = detections[0];
+        const resized = faceapi.resizeResults(det, ds);
+        faceapi.draw.drawDetections(clockCanvas, [resized]);
+
+        // Heuristic: require sufficiently large face (avoid far-away)
+        const ratio = resized.detection.box.width / ds.width;
+        if (ratio < 0.18){ clockStatus.textContent = 'เข้าใกล้กล้องอีกนิด'; clockStatus.classList.remove('text-green-600'); clockActionButton.disabled = true; return; }
+
+        const best = faceMatcher.findBestMatch(det.descriptor);
+        const label = best.label;
+        const dist  = best.distance;
+
+        // Update stability
+        const c = center(resized.detection.box);
+        const movePx = stable.lastCenter ? Math.hypot(stable.lastCenter.x - c.x, stable.lastCenter.y - c.y) : 0;
+        if (label !== 'unknown' && dist <= MATCH_DISTANCE && movePx < 40){
+          if (stable.label === label) stable.count++; else { stable.label = label; stable.count = 1; }
+          stable.lastCenter = c;
+        } else { stable = { label:null, count:0, lastCenter:null }; }
+
+        if (stable.count >= STABLE_FRAMES){
+          activeUser = registeredUsersData.find(u=>u.id===label) || null;
+          if (activeUser){
+            clockStatus.textContent = `ยินดีต้อนรับ, ${activeUser.name}`;
+            clockStatus.classList.add('text-green-600');
+            haptic(20); beep(880,60);
+            clockActionButton.disabled = false;
+            clockActionButton.textContent = 'กดเพื่อบันทึกเวลา';
+          }
+        } else {
+          clockStatus.textContent = 'กำลังจดจำใบหน้า...';
+          clockStatus.classList.remove('text-green-600');
+          clockActionButton.disabled = true;
+          clockActionButton.textContent = 'กรุณามองกล้องเพื่อสแกนใบหน้า';
+        }
+      }, 250); // faster loop = ติดง่ายขึ้น
     }
     function stopRecognition(){ if (recognitionInterval){ clearInterval(recognitionInterval); recognitionInterval=null; } }
+    function center(box){ return { x: box.x + box.width/2, y: box.y + box.height/2 }; }
     function resetClockStatus(){
-      activeUser=null; 
-      clockStatus.textContent=''; 
+      activeUser=null;
+      clockStatus.textContent='';
       clockStatus.classList.remove('text-green-600');
-      clockActionButton.disabled=true; 
+      clockActionButton.disabled=true;
       clockActionButton.innerHTML = 'กรุณามองกล้องเพื่อสแกนใบหน้า';
     }
     clockActionButton.addEventListener('click', ()=>{ if (activeUser) recordAttendance(activeUser,'Face'); });
 
     async function recordAttendance(user, method) {
-        const now = new Date();
-        const lastScan = lastScanTimestamps[user.id];
-        if (lastScan && (now - lastScan) / 1000 < SCAN_COOLDOWN_SECONDS) {
-            showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true);
-            return;
-        }
+      const now = new Date();
+      const lastScan = lastScanTimestamps[user.id];
+      if (lastScan && (now - lastScan) / 1000 < SCAN_COOLDOWN_SECONDS) {
+        showModal('สแกนซ้ำ', `กรุณารอ ${SCAN_COOLDOWN_SECONDS} วินาที`, true);
+        return;
+      }
 
-        clockActionButton.disabled = true;
-        clockActionButton.innerHTML = `${SPINNER_SVG}<span>กำลังบันทึก...</span>`;
+      clockActionButton.disabled = true;
+      clockActionButton.innerHTML = `${SPINNER_SVG}<span>กำลังบันทึก...</span>`;
 
-        try {
-            const todayStr = now.toISOString().split('T')[0];
-            const startOfDay = new Date(todayStr).getTime();
-            const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+      try {
+        const todayStr = now.toISOString().split('T')[0];
+        const startOfDay = new Date(todayStr).getTime();
+        const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
 
-            const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where('employeeId', '==', user.id));
-            const querySnapshot = await getDocs(q);
-            let todays = 0;
-            querySnapshot.forEach(docSnap => {
-                const t = docSnap.data().timestamp.toDate().getTime();
-                if (t >= startOfDay && t <= endOfDay) todays++;
-            });
+        const q = query(collection(db, `artifacts/${appId}/public/data/attendance`), where('employeeId', '==', user.id));
+        const querySnapshot = await getDocs(q);
+        let todays = 0;
+        querySnapshot.forEach(docSnap => {
+          const t = docSnap.data().timestamp.toDate().getTime();
+          if (t >= startOfDay && t <= endOfDay) todays++;
+        });
 
-            const attendanceType = todays % 2 === 0 ? 'IN' : 'OUT';
+        const attendanceType = todays % 2 === 0 ? 'IN' : 'OUT';
 
-            await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
-                employeeId: user.id,
-                employeeName: user.name,
-                timestamp: serverTimestamp(),
-                type: attendanceType,
-                method
-            });
+        await setDoc(doc(collection(db, `artifacts/${appId}/public/data/attendance`)), {
+          employeeId: user.id,
+          employeeName: user.name,
+          timestamp: serverTimestamp(),
+          type: attendanceType,
+          method
+        });
 
-            lastScanTimestamps[user.id] = now;
-            haptic(50);
-            beep(1200, 90);
-            showToast('บันทึกเข้า/ออกเรียบร้อย');
-            
-            await fetchRecentAttendance();
+        lastScanTimestamps[user.id] = now;
+        haptic(50); beep(1200, 90);
+        showToast('บันทึกเข้า/ออกเรียบร้อย');
+        await fetchRecentAttendance();
+        stopWebcam(clockVideo);
 
-            stopWebcam(clockVideo);
-            
-            // Collapse camera view and expand recent list
-            document.getElementById('clock-interface-column').classList.add('hidden');
-            clockContainer.classList.remove('md:grid-cols-2');
-            clockContainer.classList.add('md:grid-cols-1');
-
-        } catch (err) {
-            console.error('Error recording attendance:', err);
-            showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
-            // Reset status on error
-            resetClockStatus();
-        }
+        // Collapse camera and expand recent list
+        document.getElementById('clock-interface-column').classList.add('hidden');
+        clockContainer.classList.remove('md:grid-cols-2');
+        clockContainer.classList.add('md:grid-cols-1');
+      } catch (err) {
+        console.error('Error recording attendance:', err);
+        showModal('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกเวลาได้', true);
+        resetClockStatus();
+      }
     }
-
 
     async function fetchRecentAttendance(){
       try{
@@ -614,7 +671,7 @@
       if (capturedDescriptors.length >= TOTAL_CAPTURES) return;
       statusMessage.textContent = 'กำลังประมวลผล...';
       const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
         .withFaceLandmarks().withFaceDescriptor();
       if (detection){
         capturedDescriptors.push(Array.from(detection.descriptor));
@@ -788,6 +845,7 @@
           loader.classList.add('hidden');
           registerFormContainer.classList.remove('hidden');
           historyDateInput.value = new Date().toISOString().split('T')[0];
+          syncTunableUI(); hookTunables();
           switchTab('clock');
           setInterval(updateClock, 1000);
         }
@@ -797,8 +855,8 @@
       }
     }
     main();
-  
-    // === v5.7.4b helpers ===
+
+    // helpers
     function getTodayTH(d = new Date()){
       try{ const fmt = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Bangkok', year:'numeric', month:'2-digit', day:'2-digit'}); return fmt.format(d); }
       catch(e){ const t = new Date(d.getTime()+7*60*60*1000); const y=t.getUTCFullYear(), m=String(t.getUTCMonth()+1).padStart(2,'0'), da=String(t.getUTCDate()).padStart(2,'0'); return `${y}-${m}-${da}`; }
@@ -813,6 +871,6 @@
     window.addEventListener('online', refreshNetBanner);
     window.addEventListener('offline', refreshNetBanner);
     refreshNetBanner();
-</script>
+  </script>
 </body>
 </html>
